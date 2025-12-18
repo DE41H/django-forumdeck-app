@@ -34,7 +34,7 @@ class Tag(models.Model):
         verbose_name_plural = 'Tags'
 
     hex_validator = validators.RegexValidator(
-        regex=r'^#[A-Za-z0-9]{6}$',
+        regex=r'^#[A-Fa-f0-9]{6}$',
         message='Enter a valid hex color code'
     )
 
@@ -67,9 +67,9 @@ class Post(models.Model):
     is_deleted = models.BooleanField(verbose_name='is deleted', default=False, db_index=True)
 
     @property
-    def content(self):
+    def content(self) -> str:
         if self.is_deleted:
-            return '[This content has been removed by a moderator]'
+            return '[This content has been removed]'
         else:
             return str(self.raw_content)
 
@@ -100,6 +100,11 @@ class Thread(Post):
     is_locked = models.BooleanField(verbose_name='is locked', default=False, db_index=True)
     reply_count = models.PositiveIntegerField(verbose_name='reply_count', default=0)
 
+    def soft_delete(self):
+        if not self.is_deleted:
+            self.is_deleted = True
+            self.save(update_fields=['is_deleted'])
+
     def __str__(self) -> str:
         return f'Thread Title: {self.title}\nAuthor: {self.author}\nContent: {self.content}'
 
@@ -114,10 +119,18 @@ class Reply(Post):
 
     thread = models.ForeignKey(verbose_name='thread', to='threads.Thread', on_delete=models.CASCADE, related_name='replies')
 
+    def soft_delete(self) -> None:
+        if not self.is_deleted:
+            self.is_deleted = True
+            self.save(update_fields=['is_deleted'])
+            self.thread.reply_count = models.F('reply_count') - 1
+            self.thread.save(update_fields=['reply_count'])
+
     def save(self, *args, **kwargs) -> None:
-        self.thread.reply_count = models.F('reply_count') + 1
-        self.thread.save(update_fields=['reply_count'])
-        return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
+        if self.pk is None:
+            self.thread.reply_count = models.F('reply_count') + 1
+            self.thread.save(update_fields=['reply_count'])
 
     def __str__(self) -> str:
         return f'Reply to: {self.thread}\nAuthor: {self.author}\nContent: {self.content}'

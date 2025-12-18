@@ -24,7 +24,7 @@ class Course(models.Model):
 
     code_validator = validators.RegexValidator(
         regex=r'^[A-Z]{2,4}\s[A-Z]{1}\d{3}$',
-        message='Course code must in the format "CS F111" or "MATH F101"'
+        message='Course code must be in the format "CS F111" or "MATH F101"'
     )
 
     code = models.CharField(verbose_name='code', max_length=25, unique=True, validators=[code_validator])
