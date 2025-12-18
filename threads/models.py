@@ -127,8 +127,9 @@ class Reply(Post):
             self.thread.save(update_fields=['reply_count'])
 
     def save(self, *args, **kwargs) -> None:
+        pk = self.pk
         super().save(*args, **kwargs)
-        if self.pk is None:
+        if pk is None:
             self.thread.reply_count = models.F('reply_count') + 1
             self.thread.save(update_fields=['reply_count'])
 
