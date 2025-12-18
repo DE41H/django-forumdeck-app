@@ -21,8 +21,7 @@ class ThreadAdmin(admin.ModelAdmin):
         model = Reply
         extra = 0
         fields = ('author', 'raw_content', 'upvote_count', 'is_deleted')
-        readonly_fields = ('author', 'raw_content', 'upvote_count') 
-        ordering = ('-created_at')
+        readonly_fields = ('author', 'raw_content', 'upvote_count')
         classes = ['collapse']
 
     list_display = ('title', 'author', 'raw_content', 'category', 'reply_count', 'upvote_count', 'is_locked', 'is_deleted')
@@ -30,7 +29,6 @@ class ThreadAdmin(admin.ModelAdmin):
     list_filter = ('category', 'is_locked', 'is_deleted', 'created_at')
     list_editable = ('is_locked', 'is_deleted')
     search_fields = ('title', 'author__username', 'raw_content')
-    ordering = ['-created_at']
     inlines = [ReplyInline]
     actions = ['soft_delete_threads', 'lock_threads']
     
