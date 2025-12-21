@@ -151,6 +151,7 @@ class Report(models.Model):
     reply = models.ForeignKey(verbose_name='reply', to='threads.Reply', on_delete=models.CASCADE, related_name='reports', blank=True, null=True)
     reason = models.TextField(verbose_name='reason')
     status = models.CharField(verbose_name='status', choices=StatusChoices.choices, max_length=8, default=StatusChoices.PENDING, db_index=True)
+    created_at = models.DateTimeField(verbose_name='created_at', auto_now_add=True)
     
     def clean(self) -> None:
         if not self.thread and not self.reply:
