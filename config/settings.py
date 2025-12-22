@@ -52,7 +52,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'allauth',
     'allauth.account',
-    'allauth.socialaccount.providers.google'
+    'allauth.socialaccount.providers.google',
+    'threads',
+    'courses'
 ]
 
 AUTHENTICATION_BACKENDS = [

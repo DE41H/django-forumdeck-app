@@ -22,7 +22,8 @@ from django.conf.urls.static import static
 app_name = 'config'
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/', include('allauth.urls'), name='accounts')
+    path('accounts/', include('allauth.urls'), name='accounts'),
+    path('threads/', include('threads.urls'), name='threads')
 ]
 
 if settings.DEBUG:
