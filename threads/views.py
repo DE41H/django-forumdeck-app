@@ -139,3 +139,21 @@ class ReportCreateView(LoginRequiredMixin, generic.CreateView):
         kwargs = super().get_form_kwargs()
         kwargs['reporter'] = self.request.user
         return kwargs
+    
+class UpvoteView(LoginRequiredMixin, generic.RedirectView):
+    permanent = False
+
+    def get_redirect_url(self, *args: Any, **kwargs: Any) -> str | None:
+        return self.request.META.get('HTTP_REFERER', reverse_lazy('threads:category '))
+    
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        obj_type = self.kwargs.get('type')
+        pk = self.kwargs.get('pk')
+        if obj_type == 'thread':
+            obj = get_object_or_404(Thread, pk=pk)
+        elif obj_type == 'reply':
+            obj = get_object_or_404(Reply, pk=pk)
+        else:
+            raise Http404('Invalid content parameters!')
+        obj.update_upvotes(request.user)
+        return super().post(request, *args, **kwargs)
