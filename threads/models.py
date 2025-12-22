@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.conf import settings
 from django.core import exceptions, validators
 from django.utils import text
@@ -73,13 +73,14 @@ class Post(models.Model):
             return str(self.raw_content)
 
     def update_upvotes(self, user) -> None:
-        if self.upvotes.filter(id=user.id).exists():
-            self.upvotes.remove(user)
-            amount = -1
-        else:
-            self.upvotes.add(user)
-            amount = 1
-        self.__class__.objects.filter(pk=self.pk).update(upvote_count=models.F('upvote_count') + amount)
+        with transaction.atomic():
+            if self.upvotes.filter(id=user.id).exists():
+                self.upvotes.remove(user)
+                amount = -1
+            else:
+                self.upvotes.add(user)
+                amount = 1
+            self.__class__.objects.filter(pk=self.pk).update(upvote_count=models.F('upvote_count') + amount)
 
     def soft_delete(self):
         if not self.is_deleted:
@@ -119,16 +120,18 @@ class Reply(Post):
     thread = models.ForeignKey(verbose_name='thread', to='threads.Thread', on_delete=models.CASCADE, related_name='replies')
 
     def soft_delete(self) -> None:
-        if not self.is_deleted:
-            self.is_deleted = True
-            self.save(update_fields=['is_deleted'])
-            Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') - 1)
+        with transaction.atomic():
+            if not self.is_deleted:
+                self.is_deleted = True
+                self.save(update_fields=['is_deleted'])
+                Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') - 1)
 
     def save(self, *args, **kwargs) -> None:
         pk = self.pk
-        super().save(*args, **kwargs)
-        if pk is None:
-            Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') + 1)
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if pk is None:
+                Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') + 1)
 
     def __str__(self) -> str:
         return f'Reply to: {self.thread}\nAuthor: {self.author}\nContent: {self.content}'
