@@ -79,7 +79,12 @@ class Post(models.Model):
         else:
             self.upvotes.add(user)
             amount = 1
-        self.objects.filter(pk=self.pk).update(upvote_count=models.F('upvote_count') + amount)
+        self.__class__.objects.filter(pk=self.pk).update(upvote_count=models.F('upvote_count') + amount)
+
+    def soft_delete(self):
+        if not self.is_deleted:
+            self.is_deleted = True
+            self.save(update_fields=['is_deleted'])
 
 
 class Thread(Post):
@@ -99,11 +104,6 @@ class Thread(Post):
     is_locked = models.BooleanField(verbose_name='is locked', default=False, db_index=True)
     reply_count = models.PositiveIntegerField(verbose_name='reply_count', default=0)
 
-    def soft_delete(self):
-        if not self.is_deleted:
-            self.is_deleted = True
-            self.save(update_fields=['is_deleted'])
-
     def __str__(self) -> str:
         return f'Thread Title: {self.title}\nAuthor: {self.author}\nContent: {self.content}'
 
@@ -122,8 +122,7 @@ class Reply(Post):
         if not self.is_deleted:
             self.is_deleted = True
             self.save(update_fields=['is_deleted'])
-            self.thread.reply_count = models.F('reply_count') - 1
-            self.thread.save(update_fields=['reply_count'])
+            Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') - 1)
 
     def save(self, *args, **kwargs) -> None:
         pk = self.pk
@@ -157,6 +156,10 @@ class Report(models.Model):
             raise exceptions.ValidationError('A report must be linked to either a Reply or Thread')
         elif self.thread and self.reply:
             raise exceptions.ValidationError('A report cannot be linked to both a Reply and a Thread at the same time')
+        
+    def save(self, *args, **kwargs) -> None:
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f'Report By: {self.reporter}\nReport On: {self.thread if self.thread else self.reply}\nReason: {self.reason}\nStatus: {self.status}'
