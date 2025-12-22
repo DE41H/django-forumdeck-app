@@ -18,9 +18,11 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
 
 app_name = 'config'
 urlpatterns = [
+    path('', RedirectView.as_view(pattern_name='threads:category_list', permanent=True)),
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls'), name='accounts'),
     path('threads/', include('threads.urls'), name='threads')

@@ -1,3 +1,4 @@
+{% load socialaccount %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,16 +16,31 @@
             </a>
             <div class="flex items-center gap-4">
                 {% if user.is_authenticated %}
-                    <span class="text-sm text-slate-600">Hi, {{ user.username }}</span>
-                    <a href="/logout/" class="text-sm font-medium text-slate-700 hover:text-indigo-600">Logout</a>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-medium text-slate-700">{{ user.username }}</span>
+                        <form method="post" action="{% url 'account_logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="text-xs bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors">Logout</button>
+                        </form>
+                    </div>
                 {% else %}
-                    <a href="/login/" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">Login</a>
+                    <a href="{% url 'account_login' %}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all">
+                        Sign In
+                    </a>
                 {% endif %}
             </div>
         </div>
     </nav>
 
     <main class="max-w-5xl mx-auto px-4 py-8">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 p-4 rounded-lg {% if message.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-emerald-50 text-emerald-700{% endif %} text-sm font-medium">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
         {% block content %}{% endblock %}
     </main>
 
