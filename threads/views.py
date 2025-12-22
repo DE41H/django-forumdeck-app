@@ -140,6 +140,13 @@ class ReportCreateView(LoginRequiredMixin, generic.CreateView):
         kwargs['reporter'] = self.request.user
         return kwargs
     
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context =  super().get_context_data(**kwargs)
+        context['type'] = self.type
+        context['object'] = self.object
+        return context
+    
+    
 class UpvoteView(LoginRequiredMixin, generic.RedirectView):
     permanent = False
 

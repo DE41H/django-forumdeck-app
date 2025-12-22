@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+<header class="mb-8">
+    <h1 class="text-3xl font-bold tracking-tight">Discussion Groups</h1>
+    <p class="text-slate-500">Select a category to start or join a conversation.</p>
+</header>
+
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {% for category in categories %}
+    <a href="{% url 'threads:thread_list' category.slug '-created_at' %}" 
+       class="group p-6 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-indigo-300 hover:shadow-md transition-all">
+        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+            <i data-lucide="message-square"></i>
+        </div>
+        <h2 class="text-lg font-semibold text-slate-800">{{ category.name }}</h2>
+        <p class="text-sm text-slate-500 mt-1">Explore discussions in {{ category.name }}</p>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

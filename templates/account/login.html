@@ -1,39 +1,38 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% load socialaccount %}
 
 {% block content %}
-<div class="login-container" style="text-align: center; margin-top: 100px;">
-    <h2>StudyDeck Forum</h2>
-    <p>Please sign in using your BITS Email to continue.</p>
-    
-    <hr style="width: 20%; margin: 20px auto;">
+<div class="min-h-[70vh] flex flex-col items-center justify-center">
+    <div class="max-w-md w-full bg-white border border-slate-200 p-8 rounded-2xl shadow-sm text-center">
+        <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="shield-check" class="w-8 h-8"></i>
+        </div>
 
-    {# Link directly to the Google login provider #}
-    <a href="{% provider_login_url 'google' %}" class="google-btn">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google Logo" width="20px">
-        Sign in with Google (BITS Mail)
-    </a>
+        <h1 class="text-2xl font-bold text-slate-900 mb-2">Welcome to StudyDeck</h1>
+        <p class="text-slate-500 mb-8 text-sm">
+            Please sign in with your BITS Gmail account to access the forum and resources.
+        </p>
 
-    <p style="font-size: 0.8rem; color: #666; margin-top: 20px;">
-        Access restricted to @bits-pilani.ac.in domains only.
-    </p>
+        {% if not user.is_authenticated %}
+            {# Link to trigger the Google OAuth flow directly #}
+            <a href="{% provider_login_url 'google' %}" 
+               class="flex items-center justify-center gap-3 w-full bg-white border border-slate-300 py-3 px-4 rounded-xl font-medium text-slate-700 hover:bg-slate-50 transition-all hover:border-slate-400">
+                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5" alt="Google Logo">
+                Sign in with Google
+            </a>
+            
+            <p class="mt-6 text-xs text-slate-400">
+                By signing in, you agree to our community guidelines.
+            </p>
+        {% else %}
+            <div class="p-4 bg-green-50 text-green-700 rounded-lg text-sm">
+                You are already logged in as <strong>{{ user.username }}</strong>.
+            </div>
+            <a href="{% url 'threads:category_list' %}" class="mt-4 inline-block text-indigo-600 font-medium">
+                Return to Forum
+            </a>
+        {% endif %}
+    </div>
 </div>
-
-<style>
-    .google-btn {
-        display: inline-flex;
-        align-items: center;
-        background-color: #ffffff;
-        color: #757575;
-        border: 1px solid #ddd;
-        padding: 10px 20px;
-        border-radius: 4px;
-        text-decoration: none;
-        font-family: 'Roboto', sans-serif;
-        font-weight: 500;
-        transition: background-color 0.3s;
-    }
-    .google-btn img { margin-right: 10px; }
-    .google-btn:hover { background-color: #f1f1f1; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-</style>
 {% endblock %}
