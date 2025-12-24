@@ -51,11 +51,11 @@ class Post(models.Model):
         abstract = True
 
     upvotes = models.ManyToManyField(verbose_name='upvotes', to=settings.AUTH_USER_MODEL, blank=True, related_name='upvoted_%(class)s')
-    upvote_count = models.PositiveIntegerField(verbose_name='upvote count', default=0, db_index=True)
+    upvote_count = models.PositiveIntegerField(verbose_name='upvote count', default=0)
     raw_content = models.TextField(verbose_name='raw content')
     author = models.ForeignKey(verbose_name='author', to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='%(class)s')
-    created_at = models.DateTimeField(verbose_name='created at', auto_now_add=True, db_index=True)
-    is_deleted = models.BooleanField(verbose_name='is deleted', default=False, db_index=True)
+    created_at = models.DateTimeField(verbose_name='created at', auto_now_add=True)
+    is_deleted = models.BooleanField(verbose_name='is deleted', default=False)
 
     @property
     def content(self) -> str:
@@ -87,14 +87,13 @@ class Thread(Post):
         verbose_name = 'Thread'
         verbose_name_plural = 'Threads'
         ordering = ['-created_at']
-        indexes = [models.Index(fields=['category', '-created_at'])]
     
     category = models.ForeignKey(verbose_name='category', to='threads.Category', on_delete=models.CASCADE, related_name='threads')
-    title = models.CharField(verbose_name='title', max_length=255, db_index=True)
+    title = models.CharField(verbose_name='title', max_length=255)
     tagged_courses = models.ManyToManyField(verbose_name='tagged courses', to='courses.Course', blank=True, related_name='tagged')
     tagged_documents = models.ManyToManyField(verbose_name='tagged documents', to='courses.Resource', blank=True, related_name='tagged')
     tags = models.ManyToManyField(verbose_name='tags', to='threads.Tag', blank=True, related_name='tagged')
-    is_locked = models.BooleanField(verbose_name='is locked', default=False, db_index=True)
+    is_locked = models.BooleanField(verbose_name='is locked', default=False)
     reply_count = models.PositiveIntegerField(verbose_name='reply_count', default=0)
 
     def __str__(self) -> str:
@@ -143,7 +142,7 @@ class Report(models.Model):
     thread = models.ForeignKey(verbose_name='thread', to='threads.Thread', on_delete=models.CASCADE, related_name='reports', blank=True, null=True)
     reply = models.ForeignKey(verbose_name='reply', to='threads.Reply', on_delete=models.CASCADE, related_name='reports', blank=True, null=True)
     reason = models.TextField(verbose_name='reason')
-    status = models.CharField(verbose_name='status', choices=StatusChoices.choices, max_length=8, default=StatusChoices.PENDING, db_index=True)
+    status = models.CharField(verbose_name='status', choices=StatusChoices.choices, max_length=8, default=StatusChoices.PENDING)
     created_at = models.DateTimeField(verbose_name='created_at', auto_now_add=True)
 
     def __str__(self) -> str:
