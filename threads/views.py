@@ -93,8 +93,10 @@ class ThreadDetailView(LoginRequiredMixin, FormMixin, generic.DetailView):
             return self.form_invalid(form)
     
     def form_valid(self, form: Any) -> HttpResponse:
-        form.instance.author = self.author
-        form.instance.thread = self.get_object()
+        reply = form.save(commit=False)
+        reply.author = self.author
+        reply.thread = self.get_object()
+        reply.save()
         return super().form_valid(form)
 
     def get_form_kwargs(self) -> dict[str, Any]:
@@ -124,7 +126,7 @@ class ReportCreateView(LoginRequiredMixin, generic.CreateView):
         next = self.request.GET.get('next')
         if next and url_has_allowed_host_and_scheme(url=next, allowed_hosts={self.request.get_host()}):
             return next
-        return reverse_lazy('threads:thread_list', kwargs={'pk': self.thread_pk, 'order_by': '-created_at'})
+        return reverse_lazy('threads:thread_detail', kwargs={'pk': self.thread_pk, 'order_by': '-created_at'})
     
     def form_valid(self, form: BaseModelForm) -> HttpResponse:
         form.instance.reporter = self.request.user
