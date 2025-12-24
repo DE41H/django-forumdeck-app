@@ -1,6 +1,8 @@
+import bleach
+import markdown
 from django.db import models, transaction
 from django.conf import settings
-from django.core import exceptions, validators
+from django.core import validators
 from django.utils import text
 
 # Create your models here.
@@ -52,7 +54,8 @@ class Post(models.Model):
 
     upvotes = models.ManyToManyField(verbose_name='upvotes', to=settings.AUTH_USER_MODEL, blank=True, related_name='upvoted_%(class)s')
     upvote_count = models.PositiveIntegerField(verbose_name='upvote count', default=0)
-    raw_content = models.TextField(verbose_name='raw content')
+    raw_content = models.TextField(verbose_name='raw_content')
+    markdown_content = models.TextField(verbose_name='markdown_content', editable=False, blank=True)
     author = models.ForeignKey(verbose_name='author', to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='%(class)s')
     created_at = models.DateTimeField(verbose_name='created at', auto_now_add=True)
     is_deleted = models.BooleanField(verbose_name='is deleted', default=False)
@@ -62,7 +65,7 @@ class Post(models.Model):
         if self.is_deleted:
             return '[This content has been removed]'
         else:
-            return str(self.raw_content)
+            return str(self.markdown_content)
 
     def update_upvotes(self, user) -> None:
         with transaction.atomic():
@@ -78,6 +81,12 @@ class Post(models.Model):
         if not self.is_deleted:
             self.is_deleted = True
             self.save(update_fields=['is_deleted'])
+
+    def save(self, *args, **kwargs) -> None:
+        markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra'])
+        allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre']
+        self.markdown_content = bleach.clean(text=markdown_content, tags=allowed_tags)
+        return super().save(*args, **kwargs)
 
 
 class Thread(Post):
@@ -119,6 +128,9 @@ class Reply(Post):
 
     def save(self, *args, **kwargs) -> None:
         pk = self.pk
+        markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra'])
+        allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre']
+        self.markdown_content = bleach.clean(text=markdown_content, tags=allowed_tags)
         with transaction.atomic():
             super().save(*args, **kwargs)
             if pk is None:
