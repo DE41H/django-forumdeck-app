@@ -2,13 +2,13 @@ from typing import Any
 from django.db.models.base import Model as Model
 from django.db.models.query import QuerySet
 from django.forms import BaseModelForm
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, Http404
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views import generic
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import Http404
 from threads.models import *
 from threads.forms import *
 
@@ -16,19 +16,15 @@ from threads.forms import *
 
 class CategoryListView(generic.ListView):
     model = Category
-    template_name = 'forum/category_list.html'
+    template_name = 'threads/category_list.html'
     context_object_name = 'categories'
 
 
-class ThreadListView(LoginRequiredMixin, FormMixin, generic.ListView):
+class ThreadListView(generic.ListView):
     model = Thread
-    template_name = 'forum/thread_list.html'
+    template_name = 'threads/thread_list.html'
     context_object_name = 'threads'
     paginate_by = 10
-    form_class = ThreadCreateForm
-
-    def get_success_url(self) -> str:
-        return self.request.path
 
     def get_queryset(self) -> QuerySet[Any]:
         return Thread.objects.filter(category=self.category).order_by(self.order_by)
@@ -36,39 +32,50 @@ class ThreadListView(LoginRequiredMixin, FormMixin, generic.ListView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context['category'] = self.category
-        context['ordering'] = self.order_by
         return context
-    
-    def get_form_kwargs(self) -> dict[str, Any]:
-        kwargs = super().get_form_kwargs()
-        kwargs['author'] = self.request.user
-        return kwargs
-    
-    def form_valid(self, form: Any) -> HttpResponse:
-        form.instance.author = self.request.user
-        form.instance.category = self.category
-        return super().form_valid(form)
     
     def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         self.category: Category = get_object_or_404(Category, slug=self.kwargs['slug'])
-        self.order_by = kwargs.pop('order_by')
-        self.author = self.request.user
+        self.order_by = kwargs.get('order_by')
         if self.order_by not in ('-created_at', 'upvote_count'):
-            raise Http404('Invalid ordering parameter!')
+            raise Http404('Invalid content parameters!')
         return super().dispatch(request, *args, **kwargs)
     
-    def post(self, request, *args, **kwargs): 
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            self.object_list = self.get_queryset()
-            return self.form_invalid(form)
+class ThreadCreateView(LoginRequiredMixin, generic.CreateView):
+    model = Thread
+    form_class = ThreadCreateForm
+    template_name = 'threads/thread_create.html'
+
+    def get_success_url(self) -> str:
+        next = self.request.GET.get('next')
+        if next and url_has_allowed_host_and_scheme(url=next, allowed_hosts={self.request.get_host()}):
+            return next
+        return reverse_lazy('threads:thread_list', kwargs={'slug': self.category.slug, 'order_by': '-created_at'})
     
+    def form_valid(self, form: BaseModelForm) -> HttpResponse:
+        form.instance.author = self.author
+        form.instance.category = self.category
+        return super().form_valid(form)
+    
+    def get_form_kwargs(self) -> dict[str, Any]:
+        kwargs = super().get_form_kwargs()
+        kwargs['author'] = self.author
+        return kwargs
+    
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context['category'] = self.category
+        return context
+    
+    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        self.pk = kwargs.get('pk')
+        self.author = self.request.user
+        self.category = get_object_or_404(Category, pk=self.pk)
+        return super().dispatch(request, *args, **kwargs)
 
 class ThreadDetailView(LoginRequiredMixin, FormMixin, generic.DetailView):
     model = Thread
-    template_name = 'forum/thread_detail.html'
+    template_name = 'threads/thread_detail.html'
     context_object_name = 'thread'
     form_class = ReplyCreateForm
 
@@ -109,7 +116,7 @@ class ThreadDetailView(LoginRequiredMixin, FormMixin, generic.DetailView):
 class ReportCreateView(LoginRequiredMixin, generic.CreateView):
     model = Report
     form_class = ReportCreateForm
-    template_name = 'forum/report_form.html'
+    template_name = 'threads/report_form.html'
 
     def get_success_url(self) -> str:
         return reverse_lazy('threads:thread_detail', kwargs={'pk': self.pk, 'order_by': self.order_by})
