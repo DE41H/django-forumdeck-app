@@ -131,9 +131,11 @@ class ReportCreateView(LoginRequiredMixin, generic.CreateView):
     def form_valid(self, form: BaseModelForm) -> HttpResponse:
         form.instance.reporter = self.request.user
         if self.type == 'thread':
-            form.instance.thread = self.object
+            print('thread')
+            form.instance.thread = self.obj
         elif self.type == 'reply':
-            form.instance.reply = self.object
+            print('reply')
+            form.instance.reply = self.obj
         return super().form_valid(form)
     
     def get_form_kwargs(self) -> dict[str, Any]:
@@ -144,7 +146,7 @@ class ReportCreateView(LoginRequiredMixin, generic.CreateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context =  super().get_context_data(**kwargs)
         context['type'] = self.type
-        context['object'] = self.object
+        context['object'] = self.obj
         context['back_url'] = self.get_success_url()
         return context
     
@@ -152,11 +154,11 @@ class ReportCreateView(LoginRequiredMixin, generic.CreateView):
         self.type = kwargs.get('type')
         self.pk = kwargs.get('pk')
         if self.type == 'thread':
-            self.object = get_object_or_404(Thread, pk=self.pk)
+            self.obj = get_object_or_404(Thread, pk=self.pk)
             self.thread_pk = self.pk
         elif self.type == 'reply':
-            self.object = get_object_or_404(Reply, pk=self.pk)
-            self.thread_pk = self.object.thread.pk
+            self.obj = get_object_or_404(Reply, pk=self.pk)
+            self.thread_pk = self.obj.thread.pk
         else:
             raise Http404('Invalid content parameters!')
         return super().dispatch(request, *args, **kwargs)

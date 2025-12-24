@@ -50,14 +50,6 @@ class Post(models.Model):
     class Meta:
         abstract = True
 
-    class ActiveManager(models.Manager):
-
-        def get_queryset(self) -> models.QuerySet:
-            return super().get_queryset().filter(is_deleted=False).select_related('author')
-
-    objects = models.Manager()
-    active = ActiveManager()
-
     upvotes = models.ManyToManyField(verbose_name='upvotes', to=settings.AUTH_USER_MODEL, blank=True, related_name='upvoted_%(class)s')
     upvote_count = models.PositiveIntegerField(verbose_name='upvote count', default=0, db_index=True)
     raw_content = models.TextField(verbose_name='raw content')
@@ -153,16 +145,6 @@ class Report(models.Model):
     reason = models.TextField(verbose_name='reason')
     status = models.CharField(verbose_name='status', choices=StatusChoices.choices, max_length=8, default=StatusChoices.PENDING, db_index=True)
     created_at = models.DateTimeField(verbose_name='created_at', auto_now_add=True)
-    
-    def clean(self) -> None:
-        if not self.thread and not self.reply:
-            raise exceptions.ValidationError('A report must be linked to either a Reply or Thread')
-        elif self.thread and self.reply:
-            raise exceptions.ValidationError('A report cannot be linked to both a Reply and a Thread at the same time')
-        
-    def save(self, *args, **kwargs) -> None:
-        self.full_clean()
-        return super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f'Report By: {self.reporter}\nReport On: {self.thread if self.thread else self.reply}\nReason: {self.reason}\nStatus: {self.status}'
