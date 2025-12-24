@@ -1,49 +1,41 @@
-{% load socialaccount %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StudyDeck Forum</title>
+    <title>Forum OS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        input[type="text"], textarea, select {
+            width: 100%; padding: 0.75rem; border-radius: 0.75rem;
+            border: 1px solid #e2e8f0; background-color: #ffffff; transition: all 0.2s;
+        }
+        input[type="text"]:focus, textarea:focus {
+            outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans">
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-            <a href="{% url 'threads:category_list' %}" class="text-xl font-bold text-indigo-600 flex items-center gap-2">
-                <i data-lucide="graduation-cap"></i> StudyDeck
-            </a>
-            <div class="flex items-center gap-4">
+            <a href="{% url 'threads:category_list' %}" class="font-bold text-xl tracking-tight text-indigo-600">FORUM_OS</a>
+            <div class="flex items-center space-x-4">
                 {% if user.is_authenticated %}
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm font-medium text-slate-700">{{ user.username }}</span>
-                        <form method="post" action="{% url 'account_logout' %}">
-                            {% csrf_token %}
-                            <button type="submit" class="text-xs bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors">Logout</button>
-                        </form>
-                    </div>
+                    <span class="text-sm text-slate-500 hidden md:block">Hi, {{ user.username }}</span>
+                    <form method="post" action="{% url 'account_logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="text-sm font-medium text-red-500 hover:text-red-600">Logout</button>
+                    </form>
                 {% else %}
-                    <a href="{% url 'account_login' %}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all">
-                        Sign In
-                    </a>
+                    <a href="{% url 'account_login' %}?next={{ request.path }}" class="text-sm font-medium text-indigo-600">Login</a>
                 {% endif %}
             </div>
         </div>
     </nav>
-
     <main class="max-w-5xl mx-auto px-4 py-8">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="mb-4 p-4 rounded-lg {% if message.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-emerald-50 text-emerald-700{% endif %} text-sm font-medium">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-
         {% block content %}{% endblock %}
     </main>
-
     <script>lucide.createIcons();</script>
 </body>
 </html>
