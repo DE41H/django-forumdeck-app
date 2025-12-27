@@ -1,9 +1,13 @@
 import bleach
 import markdown
 from django.db import models, transaction
+from django.urls import reverse_lazy
 from django.conf import settings
 from django.core import validators
 from django.utils import text
+from django.contrib.auth import get_user_model
+from django.contrib.sites.models import Site
+from threads.utils import queue_mail, queue_mass_mail
 
 # Create your models here.
 
@@ -86,7 +90,27 @@ class Post(models.Model):
         markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra'])
         allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre']
         self.markdown_content = bleach.clean(text=markdown_content, tags=allowed_tags)
-        return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
+        User = get_user_model()
+        mentions = [i for i in self.raw_content.split(' ') if i.startswith('@')]
+        mentioned_users = User.objects.filter(name__in=mentions)
+        subject = f'You have been mentioned in a {self.__class__.__name__}'
+        if isinstance(self, Thread):
+            pk = self.pk
+        else:
+            pk = self.thread.pk # type: ignore
+        link = f'https://{Site.objects.get_current()}{reverse_lazy('threads:thread_detail', kwargs={'pk': pk, 'order_by': '-created_at'})}'
+        body=f'Mentioned By: {self.author}\nMentioned At: {self.created_at}\nClick this link to view: {link}'
+        messages = []
+        for user in mentioned_users:
+            message = (
+                subject,
+                body,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email]
+            )
+            messages.append(message)
+        queue_mass_mail(messages=tuple(messages))
 
 
 class Trigram(models.Model):
@@ -161,6 +185,14 @@ class Reply(Post):
             super().save(*args, **kwargs)
             if pk is None:
                 Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') + 1)
+                subject = f'Your thread has gotten replies!'
+                link = f'https://{Site.objects.get_current()}{reverse_lazy('threads:thread_detail', kwargs={'pk': self.thread.pk, 'order_by': '-created_at'})}'
+                body = f'{self.author} has replied to your thread on {self.thread.category} at {self.created_at}\nView your thread: {link}'
+                queue_mail(
+                    to=self.thread.author,
+                    subject=subject,
+                    body=body
+                )
 
     def __str__(self) -> str:
         return f'Reply to: {self.thread}\nAuthor: {self.author}\nContent: {self.content}'
