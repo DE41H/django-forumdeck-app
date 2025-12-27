@@ -20,6 +20,6 @@ urlpatterns = [
     path('reports/create/<int:pk>/<str:type>/', ReportCreateView.as_view(), name='report_create'),
     path('reports/list/', ReportListView.as_view(), name='report_list'),
     path('upvote/<int:pk>/<str:type>/', UpvoteView.as_view(), name='upvote'),
-    path('delete/<int:pk/<str:type>/', DeleteView.as_view(), name='delete'),
+    path('delete/<int:pk>/<str:type>/', DeleteView.as_view(), name='delete'),
     path('lock/<int:pk>/', LockView.as_view(), name='lock')
 ]
