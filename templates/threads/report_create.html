@@ -1,55 +1,38 @@
-{% extends "threads/base.html" %}
-{% block title %}Report content{% endblock %}
+{% extends 'base.html' %}
 
 {% block content %}
-<section class="max-w-xl mx-auto space-y-4">
-    <header>
-        <h1 class="text-xl font-semibold text-slate-900 flex items-center gap-2">
-            <i class="fa-solid fa-flag text-red-500"></i>
-            Report {{ type }}
-        </h1>
-        <p class="mt-1 text-sm text-slate-500">
-            This {{ type }} will be reviewed by a moderator.
-        </p>
-    </header>
+<div class="row justify-content-center align-items-center" style="min-height: 60vh;">
+    <div class="col-md-6">
+        <div class="card shadow-lg border-0 border-top border-danger border-4">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <div class="bg-danger bg-opacity-10 d-inline-block p-3 rounded-circle text-danger mb-3">
+                        <i class="bi bi-flag-fill fs-3"></i>
+                    </div>
+                    <h3 class="fw-bold">Report Content</h3>
+                    <p class="text-muted">Help us keep the community safe.</p>
+                </div>
 
-    <article class="bg-white/80 border border-slate-200 rounded-2xl p-4 text-sm text-slate-700">
-        {% if type == "thread" %}
-            <div class="font-medium mb-1">Thread: {{ object.title }}</div>
-            <div class="text-xs text-slate-500">Author: {{ object.author.username }}</div>
-        {% else %}
-            <div class="font-medium mb-1">Reply by {{ object.author.username }}</div>
-            <div class="prose prose-sm max-w-none text-slate-700">
-                {{ object.content|safe }}
+                <div class="alert alert-light border mb-4">
+                    <small class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem;">Reporting Content By:</small>
+                    <div class="fw-bold text-dark">{{ object.author }}</div>
+                    <div class="text-muted text-truncate mt-1 fst-italic">"{{ object.raw_content|truncatechars:80 }}"</div>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small">Reason for Report</label>
+                        <textarea name="reason" class="form-control" rows="4" required placeholder="e.g., Harassment, Spam, Inappropriate content..."></textarea>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger fw-bold">Submit Report</button>
+                        <a href="{{ back_url }}" class="btn btn-light text-muted">Cancel</a>
+                    </div>
+                </form>
             </div>
-        {% endif %}
-    </article>
-
-    <form method="post" class="bg-white/80 border border-slate-200 rounded-2xl p-6 space-y-4">
-        {% csrf_token %}
-        {% if form.non_field_errors %}
-        <p class="text-sm text-red-600">{{ form.non_field_errors.0 }}</p>
-        {% endif %}
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Reason</label>
-            {{ form.reason.errors }}
-            <textarea
-                name="{{ form.reason.name }}"
-                rows="6"
-                required
-                class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/70"
-                placeholder="Explain why this content violates the rules…">{{ form.reason.value|default:'' }}</textarea>
         </div>
-        <div class="flex justify-end gap-3">
-            <a href="{{ back_url }}"
-               class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-50">
-                Cancel
-            </a>
-            <button type="submit"
-                    class="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700">
-                Submit report
-            </button>
-        </div>
-    </form>
-</section>
+    </div>
+</div>
 {% endblock %}

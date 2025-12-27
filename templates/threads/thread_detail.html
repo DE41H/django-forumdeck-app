@@ -1,155 +1,176 @@
-{% extends "threads/base.html" %}
-{% block title %}{{ thread.title }} · Thread{% endblock %}
+{% extends 'base.html' %}
 
 {% block content %}
-<section class="max-w-4xl mx-auto space-y-6">
+<style>
+    .reply-actions { opacity: 0; transition: opacity 0.2s ease; }
+    .reply-card:hover .reply-actions { opacity: 1; }
+    
+    .thread-line {
+        position: absolute;
+        top: 60px;
+        left: 24px;
+        bottom: -20px;
+        width: 2px;
+        background-color: #e5e7eb;
+        z-index: 0;
+    }
+</style>
 
-    <article class="bg-white/80 border border-slate-200 rounded-2xl p-6 space-y-4">
-        <header class="flex justify-between gap-3">
-            <div>
-                <h1 class="text-xl sm:text-2xl font-semibold text-slate-900 break-words">
-                    {{ thread.title }}
-                </h1>
-                <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                    <span>{{ thread.author.username }}</span>
-                    <span>·</span>
-                    <span>{{ thread.created_at|date:"M d, Y" }} ({{ thread.created_at|timesince }} ago)</span>
-                    {% if thread.islocked %}
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700">
-                        <i class="fa-solid fa-lock text-[10px]"></i> Locked
-                    </span>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="flex flex-col items-end text-xs text-slate-600">
-                <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 mb-1">
-                    <i class="fa-solid fa-thumbs-up text-[10px]"></i> {{ thread.upvote_count }}
-                </div>
-                <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100">
-                    <i class="fa-solid fa-comment text-[10px]"></i> {{ thread.reply_count }}
-                </div>
-            </div>
-        </header>
+<div class="container-fluid px-0">
+    <div class="mb-4">
+        <a href="{% url 'threads:thread_list' slug=thread.category.slug order_by='-created_at' %}" class="btn btn-sm btn-white text-muted fw-bold mb-3 shadow-sm border">
+            <i class="bi bi-arrow-left me-1"></i> {{ thread.category.name }}
+        </a>
+    </div>
 
-        <div class="prose prose-sm sm:prose max-w-none text-slate-800">
-            {{ thread.content|safe }}
-        </div>
-
-        <div class="flex flex-wrap gap-2 pt-2 text-xs">
-            <form method="post" action="{% url 'threads:upvote' pk=thread.pk type='thread' %}">
-                {% csrf_token %}
-                <button type="submit"
-                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50">
-                    <i class="fa-regular fa-thumbs-up text-[11px]"></i>
-                    Upvote
-                </button>
-            </form>
-            <a href="{% url 'threads:report_create' pk=thread.pk type='thread' %}"
-               class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-red-50 hover:border-red-200 text-slate-700 hover:text-red-700">
-                <i class="fa-solid fa-flag text-[11px]"></i>
-                Report
-            </a>
-
-            {% if user.is_staff or user == thread.author %}
-            <span class="flex-1"></span>
-            {% if not thread.islocked %}
-            <form method="post" action="{% url 'threads:lock' pk=thread.pk %}">
-                {% csrf_token %}
-                <button type="submit"
-                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs">
-                    <i class="fa-solid fa-lock"></i> Lock
-                </button>
-            </form>
-            {% endif %}
-            <form method="post" action="{% url 'threads:delete' pk=thread.pk type='thread' %}">
-                {% csrf_token %}
-                <button type="submit"
-                        onclick="return confirm('Delete this thread?')"
-                        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 text-xs">
-                    <i class="fa-solid fa-trash"></i> Delete
-                </button>
-            </form>
+    <div class="d-flex gap-4 position-relative">
+        <div class="d-flex flex-column align-items-center" style="width: 50px;">
+            <img src="https://ui-avatars.com/api/?name={{ thread.author }}&background=random&size=50" class="rounded-circle z-1" width="50" height="50">
+            {% if replies %}
+            <div class="thread-line"></div>
             {% endif %}
         </div>
-    </article>
 
-    <section class="space-y-4">
-        <header class="flex items-center justify-between">
-            <h2 class="text-base sm:text-lg font-semibold text-slate-900">
-                Replies ({{ replies.count }})
-            </h2>
-        </header>
-
-        {% for reply in replies %}
-        <article class="bg-white/80 border border-slate-200 rounded-2xl p-4 space-y-2">
-            <div class="flex justify-between gap-3">
+        <div class="flex-grow-1 pb-5">
+            <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
-                    <div class="text-sm font-medium text-slate-900">{{ reply.author.username }}</div>
-                    <div class="text-xs text-slate-500">{{ reply.created_at|timesince }} ago</div>
+                    <span class="fw-bold text-dark fs-5">{{ thread.author }}</span>
+                    <span class="text-muted small ms-2">{{ thread.created_at|date:"M d, Y" }}</span>
                 </div>
-                <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-xs text-slate-600">
-                    <i class="fa-solid fa-thumbs-up text-[10px]"></i> {{ reply.upvote_count }}
+                
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-white text-muted border-0" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                        <li><a class="dropdown-item" href="{% url 'threads:report_create' pk=thread.pk type='thread' %}"><i class="bi bi-flag me-2"></i> Report</a></li>
+                        {% if user.is_staff and not thread.is_locked %}
+                        <li>
+                            <form action="{% url 'threads:lock' pk=thread.pk %}" method="post">
+                                {% csrf_token %}
+                                <button class="dropdown-item text-warning"><i class="bi bi-lock me-2"></i> Lock</button>
+                            </form>
+                        </li>
+                        {% endif %}
+                        {% if user.is_staff or user == thread.author %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form action="{% url 'threads:delete' pk=thread.pk type='thread' %}" method="post">
+                                {% csrf_token %}
+                                <button class="dropdown-item text-danger" onclick="return confirm('Delete this thread?')"><i class="bi bi-trash me-2"></i> Delete</button>
+                            </form>
+                        </li>
+                        {% endif %}
+                    </ul>
                 </div>
             </div>
-            <div class="prose prose-sm max-w-none text-slate-800">
-                {{ reply.content|safe }}
+
+            <h1 class="fw-bold mb-3 lh-tight">{{ thread.title }}</h1>
+            
+            <div class="markdown-content text-break mb-4 fs-6 text-dark">
+                {{ thread.content|safe }}
             </div>
-            <div class="flex flex-wrap gap-2 text-xs pt-1">
-                <form method="post" action="{% url 'threads:upvote' pk=reply.pk type='reply' %}">
+
+            <div class="d-flex align-items-center gap-2">
+                <form action="{% url 'threads:upvote' pk=thread.pk type='thread' %}?next={{ request.get_full_path }}" method="post">
                     {% csrf_token %}
-                    <button type="submit"
-                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50">
-                        <i class="fa-regular fa-thumbs-up text-[11px]"></i> Upvote
+                    <button class="btn btn-sm {% if request.user in thread.upvotes.all %}btn-dark{% else %}btn-outline-dark{% endif %} rounded-pill px-3 fw-bold">
+                        <i class="bi bi-heart{% if request.user in thread.upvotes.all %}-fill{% endif %} me-1"></i> {{ thread.upvote_count }}
                     </button>
                 </form>
-                <a href="{% url 'threads:report_create' pk=reply.pk type='reply' %}"
-                   class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-red-50 hover:border-red-200 text-slate-700 hover:text-red-700">
-                    <i class="fa-solid fa-flag text-[11px]"></i> Report
-                </a>
-                {% if user.is_staff or user == reply.author %}
-                <form method="post" action="{% url 'threads:delete' pk=reply.pk type='reply' %}">
-                    {% csrf_token %}
-                    <button type="submit"
-                            onclick="return confirm('Delete this reply?')"
-                            class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
-                        <i class="fa-solid fa-trash text-[11px]"></i> Delete
-                    </button>
-                </form>
+                
+                {% for tag in thread.tags.all %}
+                    <span class="badge rounded-pill border tag-badge fw-medium" data-color="{{ tag.color }}">{{ tag.name }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4 mt-2">
+        <h5 class="fw-bold m-0">{{ replies.count }} Replies</h5>
+        
+        <div class="btn-group">
+            <a href="{% url 'threads:thread_detail' pk=thread.pk order_by='-created_at' %}" 
+               class="btn btn-sm rounded-pill px-3 {% if view.kwargs.order_by == '-created_at' %}btn-dark{% else %}btn-light text-muted{% endif %}">
+               Newest
+            </a>
+            <a href="{% url 'threads:thread_detail' pk=thread.pk order_by='-upvote_count' %}" 
+               class="btn btn-sm rounded-pill px-3 {% if view.kwargs.order_by == '-upvote_count' %}btn-dark{% else %}btn-light text-muted{% endif %}">
+               Top Rated
+            </a>
+        </div>
+    </div>
+
+    <div>
+        {% for reply in replies %}
+        <div class="d-flex gap-4 position-relative reply-card">
+            <div class="d-flex flex-column align-items-center" style="width: 50px;">
+                <img src="https://ui-avatars.com/api/?name={{ reply.author }}&background=random&size=36" class="rounded-circle bg-white z-1 border border-2 border-white" width="36" height="36">
+                {% if not forloop.last %}
+                <div class="thread-line" style="top: 0; bottom: 0; left: 24px;"></div>
                 {% endif %}
             </div>
-        </article>
-        {% empty %}
-        <div class="bg-white/80 border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
-            No replies yet.
+
+            <div class="flex-grow-1 pb-4">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <div>
+                        <span class="fw-bold text-dark">{{ reply.author }}</span>
+                        <span class="text-muted small ms-2">{{ reply.created_at|timesince }} ago</span>
+                    </div>
+                    
+                    <div class="reply-actions d-flex gap-3">
+                         <a href="{% url 'threads:report_create' pk=reply.pk type='reply' %}" class="text-muted small text-decoration-none">Report</a>
+                         {% if user.is_staff or user == reply.author %}
+                            <form action="{% url 'threads:delete' pk=reply.pk type='reply' %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-link btn-sm p-0 text-danger text-decoration-none small" onclick="return confirm('Delete reply?')">Delete</button>
+                            </form>
+                         {% endif %}
+                    </div>
+                </div>
+
+                <div class="markdown-content text-secondary mb-2">
+                    {{ reply.content|safe }}
+                </div>
+
+                <form action="{% url 'threads:upvote' pk=reply.pk type='reply' %}?next={{ request.get_full_path }}" method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-link btn-sm p-0 text-decoration-none {% if request.user in reply.upvotes.all %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                        <i class="bi bi-heart{% if request.user in reply.upvotes.all %}-fill{% endif %}"></i> {{ reply.upvote_count }}
+                    </button>
+                </form>
+            </div>
         </div>
         {% endfor %}
-    </section>
+    </div>
 
-    {% if user.is_authenticated and not thread.islocked %}
-    <section class="bg-white/80 border border-slate-200 rounded-2xl p-6">
-        <h3 class="text-sm font-semibold text-slate-900 mb-3">Add a reply</h3>
-        <form method="post">
-            {% csrf_token %}
-            {% if form.non_field_errors %}
-            <p class="mb-2 text-sm text-red-600">{{ form.non_field_errors.0 }}</p>
-            {% endif %}
-            {{ form.raw_content.errors }}
-            <textarea
-                name="{{ form.raw_content.name }}"
-                rows="6"
-                required
-                class="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
-                placeholder="Write a reply…">{{ form.raw_content.value|default:'' }}</textarea>
-            <div class="mt-3 flex justify-end">
-                <button type="submit"
-                        class="px-5 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
-                    Post reply
-                </button>
+    {% if not thread.is_locked %}
+    <div class="d-flex gap-4 mt-4 pt-4 border-top">
+        <div style="width: 50px;" class="text-center d-none d-md-block">
+             <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=random&size=40" class="rounded-circle" width="40">
+        </div>
+        <div class="flex-grow-1">
+            <div class="card bg-light border-0">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-2">
+                            {{ form.raw_content }}
+                            {% if form.raw_content.errors %}
+                                <div class="text-danger small mt-1">{{ form.raw_content.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Markdown enabled</small>
+                            <button type="submit" class="btn btn-dark rounded-pill px-4 fw-bold">Post Reply</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </form>
-    </section>
-    {% elif thread.islocked %}
-    <p class="text-sm text-slate-500">This thread is locked. New replies are disabled.</p>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning rounded-3 mt-4 text-center">
+        <i class="bi bi-lock-fill"></i> This thread is locked.
+    </div>
     {% endif %}
-</section>
+</div>
 {% endblock %}

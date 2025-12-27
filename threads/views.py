@@ -29,8 +29,8 @@ class ThreadListView(generic.ListView):
 
     def get_queryset(self) -> QuerySet[Any]:
         if self.query is None or self.query == '':
-            return Thread.objects.filter(category=self.category).order_by(self.order_by)
-        return fuzzy_search(self.query).filter(category=self.category).order_by(self.order_by)
+            return Thread.objects.filter(category=self.category, is_deleted=False).order_by(self.order_by)
+        return fuzzy_search(self.query).filter(category=self.category, is_deleted=False).order_by(self.order_by)
     
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -113,6 +113,9 @@ class ThreadDetailView(LoginRequiredMixin, FormMixin, generic.DetailView):
         context = super().get_context_data(**kwargs)
         context['replies'] = self.get_object().replies.filter(is_deleted=False).select_related('author').order_by(self.order_by) # type: ignore
         return context
+    
+    def get_queryset(self) -> QuerySet[Any]:
+        return super().get_queryset().filter(is_deleted=False)
     
     def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         self.order_by = kwargs.get('order_by')
