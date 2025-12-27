@@ -36,7 +36,7 @@ def queue_mail(to, subject: str, body: str):
 def queue_mass_mail(messages):
 
     def send(messages):
-        send_mass_mail(messages)
+        send_mass_mail(messages, fail_silently=True)
 
     threading.Thread(
         target=send,

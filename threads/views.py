@@ -91,7 +91,7 @@ class ThreadDetailView(LoginRequiredMixin, FormMixin, generic.DetailView):
 
     def post(self, request, *args, **kwargs): 
         form = self.get_form()
-        if form.is_valid():
+        if form.is_valid() and not self.get_object().is_locked: # type: ignore
             return self.form_valid(form)
         else:
             self.object = self.get_object()
@@ -136,10 +136,8 @@ class ReportCreateView(LoginRequiredMixin, generic.CreateView):
     def form_valid(self, form: BaseModelForm) -> HttpResponse:
         form.instance.reporter = self.request.user
         if self.type == 'thread':
-            print('thread')
             form.instance.thread = self.obj
         elif self.type == 'reply':
-            print('reply')
             form.instance.reply = self.obj
         return super().form_valid(form)
     
@@ -237,7 +235,7 @@ class DeleteView(LoginRequiredMixin, UserPassesTestMixin, generic.RedirectView):
         return super().dispatch(request, *args, **kwargs)
     
     def test_func(self) -> bool | None:
-        return self.request.user.is_staff
+        return self.request.user.is_staff or self.object.author == self.request.user
     
 
 class LockView(LoginRequiredMixin, UserPassesTestMixin, generic.RedirectView):
