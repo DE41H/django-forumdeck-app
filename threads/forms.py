@@ -2,7 +2,7 @@ from typing import Any
 from datetime import timedelta
 from django import forms
 from django.utils import timezone
-from threads.models import *
+from threads.models import Report, Reply, Thread
 
 class ReportCreateForm(forms.ModelForm):
     

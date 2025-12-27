@@ -1,7 +1,7 @@
 import threading
 from django.core.mail import send_mail, send_mass_mail
 from django.conf import settings
-from threads.models import *
+from threads.models import Thread
 from django.db.models import Count
 
 def fuzzy_search(prompt: str):

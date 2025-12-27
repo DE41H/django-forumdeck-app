@@ -1,5 +1,15 @@
 from django.urls import path
-from threads.views import *
+from threads.views import (
+    CategoryListView,
+    ThreadListView,
+    ThreadDetailView,
+    ThreadCreateView,
+    ReportCreateView,
+    ReportListView,
+    UpvoteView,
+    DeleteView,
+    LockView
+)
 
 app_name = 'threads'
 urlpatterns = [
