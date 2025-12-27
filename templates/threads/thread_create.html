@@ -4,7 +4,7 @@
 {% block content %}
 <section class="max-w-3xl mx-auto">
     <header class="mb-6">
-        <a href="{% url 'threads:thread_list' slug=category.slug orderby='-created_at' %}"
+        <a href="{% url 'threads:thread_list' slug=category.slug order_by='-created_at' %}"
            class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800">
             <i class="fa-solid fa-arrow-left text-xs"></i>
             Back to {{ category.name }}
@@ -47,7 +47,7 @@
         </div>
 
         <div class="flex justify-end gap-3 pt-2">
-            <a href="{% url 'threads:thread_list' slug=category.slug orderby='-created_at' %}"
+            <a href="{% url 'threads:thread_list' slug=category.slug order_by='-created_at' %}"
                class="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 bg-white hover:bg-slate-50">
                 Cancel
             </a>

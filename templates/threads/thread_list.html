@@ -17,26 +17,26 @@
                     name="q"
                     value="{{ query|default:'' }}"
                     placeholder="Search in this category…"
-                    class="w-full sm:w-72 pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70">
+                    class="w-full sm:w-72 pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70">
                 <i class="fa-solid fa-magnifying-glass text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 text-xs"></i>
             </form>
             {% if user.is_authenticated %}
             <a href="{% url 'threads:thread_create' pk=category.pk %}"
                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
                 <i class="fa-solid fa-plus text-xs"></i>
-                <span>New thread</span>
+                New thread
             </a>
             {% endif %}
         </div>
     </header>
 
     <div class="flex flex-wrap gap-2 text-xs">
-        <a href="{% url 'threads:thread_list' slug=category.slug orderby='-created_at' %}{% if query %}?q={{ query }}{% endif %}"
-           class="px-3 py-1.5 rounded-full border {{ orderby == '-created_at'|yesno:'border-blue-600 bg-blue-50 text-blue-700,border-slate-200 bg-white text-slate-600' }}">
+        <a href="{% url 'threads:thread_list' slug=category.slug order_by='-created_at' %}{% if query %}?q={{ query }}{% endif %}"
+           class="px-3 py-1.5 rounded-full border {{ order_by == '-created_at'|yesno:'border-blue-600 bg-blue-50 text-blue-700,border-slate-200 bg-white text-slate-600' }}">
             Newest
         </a>
-        <a href="{% url 'threads:thread_list' slug=category.slug orderby='-upvote_count' %}{% if query %}?q={{ query }}{% endif %}"
-           class="px-3 py-1.5 rounded-full border {{ orderby == '-upvote_count'|yesno:'border-blue-600 bg-blue-50 text-blue-700,border-slate-200 bg-white text-slate-600' }}">
+        <a href="{% url 'threads:thread_list' slug=category.slug order_by='-upvote_count' %}{% if query %}?q={{ query }}{% endif %}"
+           class="px-3 py-1.5 rounded-full border {{ order_by == '-upvote_count'|yesno:'border-blue-600 bg-blue-50 text-blue-700,border-slate-200 bg-white text-slate-600' }}">
             Top
         </a>
     </div>
@@ -44,11 +44,11 @@
     {% if threads %}
     <div class="space-y-3">
         {% for thread in threads %}
-        <article class="bg-white/80 border border-slate-200 rounded-2xl p-4 sm:p-5 hover:shadow-md transition-all">
+        <article class="bg-white/80 border border-slate-200 rounded-2xl p-4 sm:p-5 hover:shadow-md transition">
             <div class="flex justify-between gap-3">
                 <div class="flex-1 min-w-0">
                     <h2 class="text-base sm:text-lg font-semibold text-slate-900 truncate">
-                        <a href="{% url 'threads:thread_detail' pk=thread.pk orderby=orderby %}"
+                        <a href="{% url 'threads:thread_detail' pk=thread.pk order_by=order_by %}"
                            class="hover:text-blue-700">
                             {{ thread.title }}
                         </a>
@@ -61,20 +61,18 @@
                         <span>·</span>
                         <span>{{ thread.created_at|timesince }} ago</span>
                         {% if thread.islocked %}
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                                <i class="fa-solid fa-lock text-[10px]"></i> locked
-                            </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700">
+                            <i class="fa-solid fa-lock text-[10px]"></i> locked
+                        </span>
                         {% endif %}
                     </div>
                 </div>
-                <div class="flex flex-col items-end justify-between text-xs text-slate-500">
-                    <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100">
-                        <i class="fa-solid fa-thumbs-up text-[10px]"></i>
-                        <span>{{ thread.upvote_count }}</span>
+                <div class="flex flex-col items-end text-xs text-slate-600">
+                    <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 mb-1">
+                        <i class="fa-solid fa-thumbs-up text-[10px]"></i> {{ thread.upvote_count }}
                     </div>
-                    <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 mt-1">
-                        <i class="fa-solid fa-comment text-[10px]"></i>
-                        <span>{{ thread.reply_count }}</span>
+                    <div class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100">
+                        <i class="fa-solid fa-comment text-[10px]"></i> {{ thread.reply_count }}
                     </div>
                 </div>
             </div>
@@ -95,7 +93,9 @@
                 <span class="px-3 py-1 rounded-lg bg-blue-600 text-white border border-blue-600">{{ num }}</span>
             {% elif num >= threads.number|add:'-2' and num <= threads.number|add:'2' %}
                 <a href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}"
-                   class="px-3 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50">{{ num }}</a>
+                   class="px-3 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50">
+                    {{ num }}
+                </a>
             {% endif %}
         {% endfor %}
         {% if threads.has_next %}
@@ -107,14 +107,8 @@
     </nav>
     {% endif %}
     {% else %}
-    <div class="bg-white/80 border border-slate-200 rounded-2xl p-10 text-center">
-        <p class="text-slate-500 mb-2">No threads yet.</p>
-        {% if user.is_authenticated %}
-        <a href="{% url 'threads:thread_create' pk=category.pk %}"
-           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700">
-            <i class="fa-solid fa-plus text-xs"></i> Create first thread
-        </a>
-        {% endif %}
+    <div class="bg-white/80 border border-slate-200 rounded-2xl p-10 text-center text-slate-500">
+        No threads yet.
     </div>
     {% endif %}
 </section>
