@@ -28,9 +28,10 @@ DEBUG = env('DJANGO_DEBUG', cast=bool)
 
 ALLOWED_HOSTS = [i.strip() for i in env('DJANGO_ALLOWED_HOSTS', cast=str).split(' ')] # type: ignore
 
+AUTH_USER_MODEL = 'users.User'
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*']
-ACCOUNT_ADAPTER = 'allauth.account.adapter.DefaultAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter'
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_LOGIN_ON_GET = True
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
@@ -52,6 +53,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # Application definition
 
 INSTALLED_APPS = [
+    'users',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
