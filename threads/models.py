@@ -151,9 +151,7 @@ class Thread(Post):
         with transaction.atomic():
             title = f'  {self.title.lower()}  '
             values: set[str] = set([title[i:i+3] for i in range(len(title) - 2)])
-            old: set[str] = set(Trigram.objects.filter(value__in=values).values_list('value', flat=True))
-            new = values - old
-            Trigram.objects.bulk_create([Trigram(value=value) for value in new])
+            Trigram.objects.bulk_create([Trigram(value=value) for value in values], ignore_conflicts=True)
             trigrams = Trigram.objects.filter(value__in=values)
             self.trigrams.set(trigrams)
 

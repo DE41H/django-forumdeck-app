@@ -9,9 +9,9 @@ from django.urls import reverse_lazy
 from django.views import generic
 from django.views.generic.edit import FormMixin
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from threads.models import Category, Thread, Reply, Report
-from threads.forms import ReplyCreateForm, ReportCreateForm, ThreadCreateForm
-from threads.utils import fuzzy_search
+from threads.models import Category, Thread, Reply, Report, Tag
+from threads.forms import ReplyCreateForm, ReportCreateForm, ThreadCreateForm, TagCreateForm
+from threads.utils import fuzzy_search, generate_random_color
 
 # Create your views here.
 
@@ -200,6 +200,25 @@ class ReportCreateView(LoginRequiredMixin, generic.CreateView):
             raise Http404('Invalid content parameters!')
         return super().dispatch(request, *args, **kwargs)
     
+
+class TagCreateView(LoginRequiredMixin, generic.FormView):
+    model = Tag
+    form_class = TagCreateForm
+    template_name = 'threads/tag_create.html'
+
+    def get_success_url(self) -> str:
+        next = self.request.GET.get('next')
+        if next and url_has_allowed_host_and_scheme(url=next, allowed_hosts={self.request.get_host()}):
+            return next
+        return reverse_lazy('threads:category_list')
+    
+    def form_valid(self, form: BaseModelForm) -> HttpResponse:
+        tags = form.cleaned_data.get('tags')
+        if tags:
+            objects = [Tag(name=f'#{name.lower()}', color=generate_random_color()) for name in tags.split(' ') if name]
+            Tag.objects.bulk_create(objects, ignore_conflicts=True)
+        return super().form_valid(form)
+
 
 class ReportListView(LoginRequiredMixin, UserPassesTestMixin, generic.ListView):
     model = Report

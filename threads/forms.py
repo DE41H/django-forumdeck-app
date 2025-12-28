@@ -2,6 +2,7 @@ from typing import Any
 from datetime import timedelta
 from django import forms
 from django.utils import timezone
+from django.core.validators import RegexValidator
 from threads.models import Report, Reply, Thread
 
 class ReportCreateForm(forms.ModelForm):
@@ -72,3 +73,20 @@ class ReplyCreateForm(forms.ModelForm):
         if count >= 2:
             raise forms.ValidationError('You are creating replies too fast!')
         return cleaned_data
+
+
+class TagCreateForm(forms.Form):
+    tag_validator = RegexValidator(
+        regex=r'^[a-zA-Z0-9 ]+$',
+        message='Enter the tags separated by whitespaces, they cannot include special characters!'
+    )
+    tags = forms.CharField(
+        required=True, 
+        validators=[tag_validator], 
+        strip=True,
+        widget=forms.widgets.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g. physics chemistry maths thermodynamics'
+        })
+    )
+

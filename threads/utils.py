@@ -1,3 +1,4 @@
+import random
 import threading
 from django.core.mail import send_mail, send_mass_mail
 from django.conf import settings
@@ -42,3 +43,6 @@ def queue_mass_mail(messages):
         target=send,
         args=(messages, )
     ).start()
+
+def generate_random_color():
+    return hex(random.randint(0x000000, 0xFFFFFF))
