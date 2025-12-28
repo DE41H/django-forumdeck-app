@@ -59,7 +59,6 @@ class Post(models.Model):
     upvotes = models.ManyToManyField(verbose_name='upvotes', to=settings.AUTH_USER_MODEL, blank=True, related_name='upvoted_%(class)s')
     upvote_count = models.PositiveIntegerField(verbose_name='upvote count', default=0)
     raw_content = models.TextField(verbose_name='raw_content')
-    markdown_content = models.TextField(verbose_name='markdown_content', editable=False, blank=True)
     author = models.ForeignKey(verbose_name='author', to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='%(class)s')
     created_at = models.DateTimeField(verbose_name='created at', auto_now_add=True)
     is_deleted = models.BooleanField(verbose_name='is deleted', default=False)
@@ -67,9 +66,11 @@ class Post(models.Model):
     @property
     def content(self) -> str:
         if self.is_deleted:
-            return '[This content has been removed]'
+            return '_[This content has been removed]_'
         else:
-            return str(self.markdown_content)
+            markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra'])
+            allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre']
+            return bleach.clean(text=markdown_content, tags=allowed_tags)
 
     def update_upvotes(self, user) -> None:
         with transaction.atomic():
@@ -88,34 +89,28 @@ class Post(models.Model):
 
     def save(self, *args, **kwargs) -> None:
         is_new = self.pk is None
-        old_content = self.raw_content
         super().save(*args, **kwargs)
-        if is_new or self.raw_content != old_content:
-            with transaction.atomic():
-                markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra'])
-                allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre']
-                self.markdown_content = bleach.clean(text=markdown_content, tags=allowed_tags)
-                self.save(update_fields=['markdown_content'])
-        User = get_user_model()
-        mentions = [i for i in self.raw_content.split(' ') if i.startswith('@')]
-        mentioned_users = User.objects.filter(username__in=mentions).exclude(pk=self.author.pk)
-        subject = f'You have been mentioned in a {self.__class__.__name__}'
-        if isinstance(self, Thread):
-            pk = self.pk
-        else:
-            pk = self.thread.pk # type: ignore
-        link = f'https://{Site.objects.get_current()}{reverse_lazy('threads:thread_detail', kwargs={'pk': pk, 'order_by': '-created_at'})}'
-        body=f'Mentioned By: {self.author}\nMentioned At: {self.created_at}\nClick this link to view: {link}'
-        messages = []
-        for user in mentioned_users:
-            message = (
-                subject,
-                body,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email]
-            )
-            messages.append(message)
-        queue_mass_mail(messages=tuple(messages))
+        if is_new:
+            User = get_user_model()
+            mentions = [i for i in self.raw_content.split(' ') if i.startswith('@')]
+            mentioned_users = User.objects.filter(username__in=mentions).exclude(pk=self.author.pk)
+            subject = f'You have been mentioned in a {self.__class__.__name__}'
+            if isinstance(self, Thread):
+                pk = self.pk
+            else:
+                pk = self.thread.pk # type: ignore
+            link = f'https://{Site.objects.get_current()}{reverse_lazy('threads:thread_detail', kwargs={'pk': pk, 'order_by': '-created_at'})}'
+            body=f'Mentioned By: {self.author}\nMentioned At: {self.created_at}\nClick this link to view: {link}'
+            messages = []
+            for user in mentioned_users:
+                message = (
+                    subject,
+                    body,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email]
+                )
+                messages.append(message)
+            queue_mass_mail(messages=tuple(messages))
 
 
 class Trigram(models.Model):
@@ -163,12 +158,9 @@ class Thread(Post):
             self.trigrams.set(trigrams)
 
     def save(self, *args, **kwargs) -> None:
-        is_new = self.pk is None
-        old_title = self.title
         super().save(*args, **kwargs)
-        if is_new or old_title != self.title:
-            self._save_trigrams()
-
+        self._save_trigrams()
+    
     def __str__(self) -> str:
         return f'Thread Title: {self.title}\nAuthor: {self.author}\nContent: {self.content}'
 

@@ -90,10 +90,10 @@ class ThreadEditView(LoginRequiredMixin, UserPassesTestMixin, generic.UpdateView
         next = self.request.GET.get('next')
         if next and url_has_allowed_host_and_scheme(url=next, allowed_hosts={self.request.get_host()}):
             return next
-        return reverse_lazy('threads:thread_detail', kwargs={'pk': self.object.pk, 'order_by': '-created_at'}) # type: ignore
+        return reverse_lazy('threads:thread_detail', kwargs={'pk': self.get_object().pk, 'order_by': '-created_at'}) # type: ignore
 
     def test_func(self) -> bool | None:
-        return self.object.author == self.request.user # type: ignore
+        return self.get_object().author == self.request.user # type: ignore
     
 class ReplyEditView(LoginRequiredMixin, UserPassesTestMixin, generic.UpdateView):
     model = Reply
@@ -105,10 +105,10 @@ class ReplyEditView(LoginRequiredMixin, UserPassesTestMixin, generic.UpdateView)
         next = self.request.GET.get('next')
         if next and url_has_allowed_host_and_scheme(url=next, allowed_hosts={self.request.get_host()}):
             return next
-        return reverse_lazy('threads:thread_detail', kwargs={'pk': self.object.thread.pk, 'order_by': '-created_at'}) # type: ignore
+        return reverse_lazy('threads:thread_detail', kwargs={'pk': self.get_object().thread.pk, 'order_by': '-created_at'}) # type: ignore
 
     def test_func(self) -> bool | None:
-        return self.object.author == self.request.user # type: ignore
+        return self.get_object().author == self.request.user # type: ignore
 
 
 class ThreadDetailView(LoginRequiredMixin, FormMixin, generic.DetailView):
