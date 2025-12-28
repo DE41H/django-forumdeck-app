@@ -32,7 +32,7 @@ class Course(models.Model):
     department = models.ForeignKey(to='courses.Department', on_delete=models.CASCADE)
 
     def __str__(self) -> str:
-        return f'Course Code: {self.code}'
+        return str(self.code)
 
 
 class Resource(models.Model):
@@ -53,4 +53,4 @@ class Resource(models.Model):
     link = models.URLField(verbose_name='link', max_length=200, unique=True)
 
     def __str__(self) -> str:
-        return f'Resource Title: {self.title}\nType: {self.type}\nLink: {self.link}'
+        return str(self.title)

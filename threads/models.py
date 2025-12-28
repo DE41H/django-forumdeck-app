@@ -48,7 +48,7 @@ class Tag(models.Model):
     color = models.CharField(verbose_name='color', max_length=7, validators=[hex_validator])
 
     def __str__(self) -> str:
-        return f'Tag Name: {self.name}\nTag Color: {self.color}'
+        return str(self.name)
 
 
 class Post(models.Model):
