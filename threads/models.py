@@ -87,10 +87,15 @@ class Post(models.Model):
             self.save(update_fields=['is_deleted'])
 
     def save(self, *args, **kwargs) -> None:
-        markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra'])
-        allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre']
-        self.markdown_content = bleach.clean(text=markdown_content, tags=allowed_tags)
+        is_new = self.pk is None
+        old_content = self.raw_content
         super().save(*args, **kwargs)
+        if is_new or self.raw_content != old_content:
+            with transaction.atomic():
+                markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra'])
+                allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre']
+                self.markdown_content = bleach.clean(text=markdown_content, tags=allowed_tags)
+                self.save(update_fields=['markdown_content'])
         User = get_user_model()
         mentions = [i for i in self.raw_content.split(' ') if i.startswith('@')]
         mentioned_users = User.objects.filter(username__in=mentions).exclude(pk=self.author.pk)
@@ -158,9 +163,10 @@ class Thread(Post):
             self.trigrams.set(trigrams)
 
     def save(self, *args, **kwargs) -> None:
-        pk = self.pk
+        is_new = self.pk is None
+        old_title = self.title
         super().save(*args, **kwargs)
-        if pk is None:
+        if is_new or old_title != self.title:
             self._save_trigrams()
 
     def __str__(self) -> str:
@@ -185,23 +191,18 @@ class Reply(Post):
                 Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') - 1)
 
     def save(self, *args, **kwargs) -> None:
-        with transaction.atomic():
-            pk = self.pk
-            markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra'])
-            allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre']
-            self.markdown_content = bleach.clean(text=markdown_content, tags=allowed_tags)
-            super().save(*args, **kwargs)
-        with transaction.atomic():
-            if pk is None:
-                Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') + 1)
-                subject = f'Your thread has gotten replies!'
-                link = f'https://{Site.objects.get_current()}{reverse_lazy('threads:thread_detail', kwargs={'pk': self.thread.pk, 'order_by': '-created_at'})}'
-                body = f'{self.author} has replied to your thread on {self.thread.category} at {self.created_at}\nView your thread: {link}'
-                queue_mail(
-                    to=self.thread.author,
-                    subject=subject,
-                    body=body
-                )
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if is_new:
+            Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') + 1)
+            subject = f'Your thread has gotten replies!'
+            link = f'https://{Site.objects.get_current()}{reverse_lazy('threads:thread_detail', kwargs={'pk': self.thread.pk, 'order_by': '-created_at'})}'
+            body = f'{self.author} has replied to your thread on {self.thread.category} at {self.created_at}\nView your thread: {link}'
+            queue_mail(
+                to=self.thread.author,
+                subject=subject,
+                body=body
+            )
 
     def __str__(self) -> str:
         return f'Reply to: {self.thread}\nAuthor: {self.author}\nContent: {self.content}'

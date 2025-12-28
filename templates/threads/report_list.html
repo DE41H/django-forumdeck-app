@@ -4,20 +4,33 @@
 <div class="d-flex justify-content-between align-items-center mb-5 pt-2">
     <div>
         <h1 class="fw-bold h3 text-dark mb-1">Moderation Queue</h1>
-        <p class="text-secondary mb-0">Review pending reports.</p>
+        <p class="text-secondary mb-0">Review user reports and take action.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge bg-danger rounded-pill px-3 py-2 border border-danger bg-opacity-10 text-danger">
+            {{ report_list.count }} Total
+        </span>
     </div>
 </div>
 
 <div class="d-flex flex-column gap-3">
-    {% for report in reports %}
-    <div class="widget-box p-0 overflow-hidden">
-        <div class="bg-light p-3 border-bottom d-flex justify-content-between align-items-center">
+    {% for report in report_list %}
+    
+    <div class="widget-box p-0 overflow-hidden {% if report.status == 'RESOLVED' %}opacity-75 bg-light{% endif %}" style="transition: all 0.2s;">
+        
+        <div class="p-3 border-bottom d-flex justify-content-between align-items-center {% if report.status == 'RESOLVED' %}bg-secondary bg-opacity-10{% else %}bg-light{% endif %}">
             <span class="small text-muted">
-                <i class="bi bi-flag-fill text-danger me-2"></i>
+                <i class="bi bi-flag-fill {% if report.status == 'RESOLVED' %}text-muted{% else %}text-danger{% endif %} me-2"></i>
                 <strong>{{ report.reporter }}</strong> reported 
                 {% if report.thread %}a Thread{% else %}a Reply{% endif %}
+                &bull; {{ report.created_at|timesince }} ago
             </span>
-            <span class="badge bg-white text-dark border shadow-sm">{{ report.status }}</span>
+            
+            {% if report.status == 'PENDING' %}
+                <span class="badge bg-warning text-dark border shadow-sm">PENDING</span>
+            {% else %}
+                <span class="badge bg-success text-white border shadow-sm">RESOLVED</span>
+            {% endif %}
         </div>
 
         <div class="p-4">
@@ -26,32 +39,87 @@
                 <div class="text-dark fw-medium">{{ report.reason }}</div>
             </div>
 
-            <div class="p-3 bg-light rounded-3 mb-4 border border-start-0 border-end-0">
-                <div class="text-muted fst-italic">
+            <div class="p-3 bg-white rounded-3 mb-4 border shadow-sm">
+                <label class="sidebar-label mb-2">Offending Content</label>
+                <div class="text-secondary fst-italic text-truncate">
+                    {% if report.thread %}
+                        <strong>{{ report.thread.title }}</strong><br>
+                    {% endif %}
                     "{{ report.thread.content|default:report.reply.content|striptags|truncatechars:200 }}"
+                </div>
+                
+                <div class="mt-2 text-end border-top pt-2">
+                    {% if report.thread %}
+                        <a href="{% url 'threads:thread_detail' pk=report.thread.pk order_by='-created_at' %}" class="small fw-bold text-decoration-none" target="_blank">
+                            View Thread <i class="bi bi-box-arrow-up-right ms-1"></i>
+                        </a>
+                    {% elif report.reply %}
+                        <a href="{% url 'threads:thread_detail' pk=report.reply.thread.pk order_by='-created_at' %}" class="small fw-bold text-decoration-none" target="_blank">
+                            View Context <i class="bi bi-box-arrow-up-right ms-1"></i>
+                        </a>
+                    {% endif %}
                 </div>
             </div>
 
             <div class="d-flex gap-2">
-                {% if report.thread %}
-                <form action="{% url 'threads:delete' pk=report.thread.pk type='thread' %}" method="post" class="flex-grow-1">
+                
+                <form action="{% url 'threads:report_update' pk=report.pk %}" method="post" class="flex-grow-1">
                     {% csrf_token %}
-                    <button class="btn btn-danger w-100 fw-bold" onclick="return confirm('Delete Thread?')"><i class="bi bi-trash me-1"></i> Delete Content</button>
+                    {% if report.status == 'PENDING' %}
+                        <button class="btn btn-success w-100 fw-bold text-white shadow-sm" style="border-radius: var(--radius-sharp);">
+                            <i class="bi bi-check-circle-fill me-2"></i> Mark Resolved
+                        </button>
+                    {% else %}
+                        <button class="btn btn-white border w-100 fw-bold text-muted shadow-sm" style="border-radius: var(--radius-sharp);">
+                            <i class="bi bi-arrow-counterclockwise me-2"></i> Re-open Report
+                        </button>
+                    {% endif %}
                 </form>
-                {% elif report.reply %}
-                <form action="{% url 'threads:delete' pk=report.reply.pk type='reply' %}" method="post" class="flex-grow-1">
-                    {% csrf_token %}
-                    <button class="btn btn-danger w-100 fw-bold" onclick="return confirm('Delete Reply?')"><i class="bi bi-trash me-1"></i> Delete Content</button>
-                </form>
+
+                {% if report.status == 'PENDING' %}
+                    {% if report.thread %}
+                    <form action="{% url 'threads:delete' pk=report.thread.pk type='thread' %}" method="post" class="flex-grow-1">
+                        {% csrf_token %}
+                        <button class="btn btn-danger w-100 fw-bold shadow-sm" style="border-radius: var(--radius-sharp);" onclick="return confirm('Delete this thread permanently?')">
+                            <i class="bi bi-trash me-1"></i> Delete Content
+                        </button>
+                    </form>
+                    {% elif report.reply %}
+                    <form action="{% url 'threads:delete' pk=report.reply.pk type='reply' %}" method="post" class="flex-grow-1">
+                        {% csrf_token %}
+                        <button class="btn btn-danger w-100 fw-bold shadow-sm" style="border-radius: var(--radius-sharp);" onclick="return confirm('Delete this reply permanently?')">
+                            <i class="bi bi-trash me-1"></i> Delete Content
+                        </button>
+                    </form>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>
     </div>
     {% empty %}
     <div class="text-center py-5">
+        <div class="bg-success bg-opacity-10 text-success rounded-circle d-inline-flex p-4 mb-3">
+            <i class="bi bi-shield-check display-4"></i>
+        </div>
         <h3 class="fw-bold text-dark">All Clear</h3>
-        <p class="text-muted">No pending reports.</p>
+        <p class="text-muted">No reports found.</p>
     </div>
     {% endfor %}
+</div>
+{% endblock %}
+
+{% block right_sidebar %}
+<div class="mb-4">
+    <label class="sidebar-label">Legend</label>
+    <div class="widget-box p-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-warning text-dark border">PENDING</span>
+            <span class="text-muted small">Requires attention. Content is live.</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success text-white border">RESOLVED</span>
+            <span class="text-muted small">Handled or dismissed.</span>
+        </div>
+    </div>
 </div>
 {% endblock %}
