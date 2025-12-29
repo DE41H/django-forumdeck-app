@@ -6,8 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
-COPY requirements.dev.txt .
-RUN python -m pip install --no-cache-dir -r requirements.dev.txt
+COPY requirements.txt .
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
 RUN groupadd -r appgroup && adduser -u 5678 --disabled-password --gecos "" appuser
 COPY --chown=appuser:appgroup . .

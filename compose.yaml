@@ -13,7 +13,7 @@ services:
     command: > 
       sh -c "python manage.py makemigrations --no-input && 
       python manage.py migrate --no-input && 
-      python manage.py populate_data &&
+      python manage.py populate_dummy_data &&
       python manage.py runserver 0.0.0.0:8000"
     volumes:
       - static_volume:/app/static
@@ -21,14 +21,14 @@ services:
   db:
     image: postgres:14-alpine
     env_file:
-      - .env.dev
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     expose:
       - "5432"
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h db -p 5432 -U metro_dev_user"]
+      test: ["CMD-SHELL", "pg_isready -h db -p 5432 -U forumuser"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -37,4 +37,3 @@ volumes:
   postgres_data: 
   static_volume:
   media_volume:
-

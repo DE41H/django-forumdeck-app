@@ -1,0 +1,23 @@
+FROM python:3.12-slim AS installer
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+COPY requirements.prod.txt .
+RUN python -m pip install --no-cache-dir -r requirements.prod.txt
+
+FROM python:3.12-slim AS final
+
+EXPOSE 8000
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+COPY --from=installer /usr/local/lib/ /usr/local/lib/
+COPY --from=installer /usr/local/bin/ /usr/local/bin/
+
+RUN groupadd -r appgroup && adduser -u 5678 --disabled-password --gecos "" appuser
+COPY --chown=appuser:appgroup . .
+USER appuser

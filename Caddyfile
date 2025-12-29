@@ -1,0 +1,18 @@
+:80{
+    encode zstd gzip
+    header {
+        Permissions-Policy "interest-cohort=()"
+        Strict-Transport-Security "max-age=31536000;"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+    }
+    handle_path /static/* {
+        root * /data/static
+        file_server
+    }
+    handle_path /media/* {
+        root * /data/media
+        file_server
+    }
+    reverse_proxy web:8000
+}
