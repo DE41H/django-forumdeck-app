@@ -1,6 +1,6 @@
 import bleach
 import markdown
-from django.db import models, transaction
+from django.db import models, transaction, IntegrityError
 from django.urls import reverse_lazy
 from django.conf import settings
 from django.core import validators
@@ -18,15 +18,23 @@ class Category(models.Model):
         verbose_name_plural = 'Categories'
 
     name = models.CharField(verbose_name='name', max_length=255, unique=True)
-    slug = models.SlugField(unique=True, blank=True, editable=False)
+    slug = models.SlugField(verbose_name='slug', unique=True, blank=True, editable=False)
 
     def save(self, *args, **kwargs):
-        if not self.slug:
+        is_new = self.pk is None
+        update_fields = kwargs.get('update_fields')
+        if is_new or (update_fields is None) or (update_fields and 'name' in update_fields):
             slug = text.slugify(self.name)
-            count = 1
-            while Category.objects.filter(slug=f'{slug}-{count}').exists():
-                count += 1
-            self.slug = f'{slug}-{count}'
+            count = 0
+            self.slug = slug
+            while True:
+                try:
+                    with transaction.atomic():
+                        super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    count += 1
+                    self.slug = f'{slug}-{count}'
         super().save(*args, **kwargs)
         
     def __str__(self) -> str:
@@ -68,36 +76,44 @@ class Post(models.Model):
         if self.is_deleted:
             return '_[This content has been removed]_'
         else:
-            markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra'])
-            allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre']
-            return bleach.clean(text=markdown_content, tags=allowed_tags)
+            markdown_content = markdown.markdown(text=self.raw_content, extensions=['extra', 'nl2br', 'codehilite'])
+            allowed_tags = ['p', 'br', 'strong', 'em', 'u', 'blockquote', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a']
+            allowed_attrs = {'a': ['href', 'title', 'target'], '*': ['class']}
+            allowed_protocols = ['http', 'https', 'mailto']
+            return bleach.clean(text=markdown_content, tags=allowed_tags, attributes=allowed_attrs, protocols=allowed_protocols)
 
+    @transaction.atomic
     def update_upvotes(self, user) -> None:
-        with transaction.atomic():
-            if self.upvotes.filter(id=user.id).exists():
-                self.upvotes.remove(user)
-                amount = -1
-            else:
-                self.upvotes.add(user)
-                amount = 1
-            self.__class__.objects.filter(pk=self.pk).update(upvote_count=models.F('upvote_count') + amount)
+        obj = self.__class__.objects.select_for_update().get(pk=self.pk)
+        if obj.upvotes.filter(id=user.id).exists():
+            obj.upvotes.remove(user)
+            amount = -1
+        else:
+            obj.upvotes.add(user)
+            amount = 1
+        obj.upvote_count = models.F('upvote_count') + amount
+        obj.save(update_fields=['upvote_count'])
 
+    @transaction.atomic
     def soft_delete(self):
-        if not self.is_deleted:
-            self.is_deleted = True
-            self.save(update_fields=['is_deleted'])
+        obj = self.__class__.objects.select_for_update().get(pk=self.pk)
+        if not obj.is_deleted:
+            obj.is_deleted = True
+            obj.save(update_fields=['is_deleted'])
 
     def _get_mentioned(self):
         User = get_user_model()
-        excluded = ',!?;:()[]{}\"\'/\\<>*&^%$#='
-        mentions = [i.rstrip(excluded) for i in self.raw_content.split(' ') if i.startswith('@')]
+        excluded = '.,!?;:()[]{}\"\'/\\<>*&^%$#='
+        words = {i.strip(excluded) for i in self.raw_content.split()}
+        mentions = {i.lstrip('@') for i in words if i.startswith('@')}
         mentioned_users = User.objects.filter(username__in=mentions).exclude(pk=self.author.pk)
         return mentioned_users
         
     def save(self, *args, **kwargs) -> None:
         is_new = self.pk is None
+        update_fields = kwargs.get('update_fields')
         super().save(*args, **kwargs)
-        if is_new:
+        if is_new or (update_fields is None) or (update_fields and 'raw_content' in update_fields):
             if isinstance(self, Thread):
                 pk = self.pk
             else:
@@ -157,25 +173,30 @@ class Thread(Post):
             '-score'
         )
 
+    @transaction.atomic
     def update_lock(self):
-        with transaction.atomic():
-            if self.is_locked:
-                self.is_locked = False
-            else:
-                self.is_locked = True
-            self.save(update_fields=['is_locked'])
+        obj = self.__class__.objects.select_for_update().get(pk=self.pk)
+        if obj.is_locked:
+            obj.is_locked = False
+        else:
+            obj.is_locked = True
+        obj.save(update_fields=['is_locked'])
 
+    @transaction.atomic
     def _save_trigrams(self) -> None:
-        with transaction.atomic():
-            title = f'  {self.title.lower()}  '
-            values: set[str] = set([title[i:i+3] for i in range(len(title) - 2)])
-            Trigram.objects.bulk_create([Trigram(value=value) for value in values], ignore_conflicts=True)
-            trigrams = Trigram.objects.filter(value__in=values)
-            self.trigrams.set(trigrams)
+        obj = self.__class__.objects.select_for_update().get(pk=self.pk)
+        title = f'  {obj.title.lower()}  '
+        values: set[str] = set([title[i:i+3] for i in range(len(title) - 2)])
+        Trigram.objects.bulk_create([Trigram(value=value) for value in values], ignore_conflicts=True)
+        trigrams = Trigram.objects.filter(value__in=values)
+        obj.trigrams.set(trigrams)
 
     def save(self, *args, **kwargs) -> None:
+        is_new = self.pk is None
         super().save(*args, **kwargs)
-        self._save_trigrams()
+        update_fields = kwargs.get('update_fields')
+        if is_new or (update_fields is None) or (update_fields and 'title' in update_fields):
+            self._save_trigrams()
     
     def __str__(self) -> str:
         return f'Thread Title: {self.title}\nAuthor: {self.author}\nContent: {self.content}'
@@ -191,12 +212,15 @@ class Reply(Post):
 
     thread = models.ForeignKey(verbose_name='thread', to='threads.Thread', on_delete=models.CASCADE, related_name='replies')
 
+    @transaction.atomic
     def soft_delete(self) -> None:
-        with transaction.atomic():
-            if not self.is_deleted:
-                self.is_deleted = True
-                self.save(update_fields=['is_deleted'])
-                Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') - 1)
+        thread = Thread.objects.select_for_update().get(pk=self.thread.pk)
+        obj = self.__class__.objects.select_for_update().get(pk=self.pk)
+        if not obj.is_deleted:
+            obj.is_deleted = True
+            thread.reply_count=models.F('reply_count') - 1
+            obj.save(update_fields=['is_deleted'])
+            thread.save(update_fields=['reply_count'])
 
     def save(self, *args, **kwargs) -> None:
         is_new = self.pk is None
@@ -233,13 +257,14 @@ class Report(models.Model):
     status = models.CharField(verbose_name='status', choices=StatusChoices.choices, max_length=8, default=StatusChoices.PENDING)
     created_at = models.DateTimeField(verbose_name='created_at', auto_now_add=True)
 
+    @transaction.atomic
     def update_status(self):
-        with transaction.atomic():
-            if self.status == self.StatusChoices.PENDING:
-                self.status = self.StatusChoices.RESOLVED
-            else:
-                self.status = self.StatusChoices.PENDING
-            self.save(update_fields=['status'])
+        obj = self.__class__.objects.select_for_update().get(pk=self.pk)
+        if obj.status == obj.StatusChoices.PENDING:
+            obj.status = obj.StatusChoices.RESOLVED
+        else:
+            obj.status = obj.StatusChoices.PENDING
+        obj.save(update_fields=['status'])
 
     def __str__(self) -> str:
         return f'Report By: {self.reporter}\nReport On: {self.thread if self.thread else self.reply}\nReason: {self.reason}\nStatus: {self.status}'
