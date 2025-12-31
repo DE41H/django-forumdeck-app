@@ -5,6 +5,7 @@ from django.db.models.base import Model as Model
 from django.db.models.query import QuerySet
 from django.forms import BaseModelForm
 from django.http import HttpRequest, HttpResponse, Http404
+from django.utils.functional import cached_property
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
@@ -47,23 +48,34 @@ class ThreadListView(generic.ListView):
         context['selected'] = self.selected_tags
         context['tags'] = Tag.objects.annotate(threads=Count('tagged')).filter(threads__gte=1).order_by('-threads')
         return context
+
+    @cached_property
+    def category(self):
+        return get_object_or_404(Category, slug=self.kwargs.get('slug'))
     
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        if self.order_by not in ('-created_at', '-upvote_count'):
+    @cached_property
+    def order_by(self):
+        order_by = self.kwargs.get('order_by')
+        if order_by not in ('-created_at', '-upvote_count'):
             raise Http404('Invalid content parameters!')
-        return super().dispatch(request, *args, **kwargs)
+        return order_by
     
-    def setup(self, request: HttpRequest, *args: Any, **kwargs: Any) -> None:
-        super().setup(request, *args, **kwargs)
-        self.category: Category = get_object_or_404(Category, slug=self.kwargs['slug'])
-        self.order_by = kwargs.get('order_by')
-        self.query = self.request.GET.get('q')
-        self.filters = self.request.GET.get('f')
+    @cached_property
+    def filters(self):
+        return self.request.GET.get('f')
+    
+    @cached_property
+    def selected_tags(self):
         if self.filters:
             selected = [i for i in self.filters.split(',') if i]
-            self.selected_tags = tuple(Tag.objects.filter(name__in=selected))
+            selected_tags = tuple(Tag.objects.filter(name__in=selected))
         else:
-            self.selected_tags = tuple()
+            selected_tags = tuple()
+        return selected_tags
+    
+    @cached_property
+    def query(self):
+        return self.request.GET.get('q')
 
 
 class ThreadCreateView(LoginRequiredMixin, generic.CreateView):
@@ -92,11 +104,14 @@ class ThreadCreateView(LoginRequiredMixin, generic.CreateView):
         context['category'] = self.category
         return context
     
-    def setup(self, request: HttpRequest, *args: Any, **kwargs: Any) -> None:
-        super().setup(request, *args, **kwargs)
-        self.author = self.request.user
-        pk = kwargs.get('pk')
-        self.category = get_object_or_404(Category, pk=pk)
+    @cached_property
+    def author(self):
+        return self.request.user
+    
+    @cached_property
+    def category(self):
+        pk = self.kwargs.get('pk')
+        return get_object_or_404(Category, pk=pk)
     
 
 class ThreadEditView(LoginRequiredMixin, UserPassesTestMixin, generic.UpdateView):
@@ -140,11 +155,14 @@ class ThreadDetailView(LoginRequiredMixin, FormMixin, generic.DetailView):
         return self.request.path
 
     def post(self, request, *args, **kwargs): 
+        self.object = self.get_object()
         form = self.get_form()
-        if form.is_valid() and not self.get_object().is_locked: # type: ignore
+        if self.object.is_locked: # type: ignore
+            form.add_error(None, 'This thread is locked!')
+            return self.form_invalid(form)
+        if form.is_valid():
             return self.form_valid(form)
         else:
-            self.object = self.get_object()
             return self.form_invalid(form)
     
     def form_valid(self, form: Any) -> HttpResponse:
@@ -165,17 +183,18 @@ class ThreadDetailView(LoginRequiredMixin, FormMixin, generic.DetailView):
         return context
     
     def get_queryset(self) -> QuerySet[Any]:
-        return super().get_queryset().filter(is_deleted=False)
+        return super().get_queryset().select_related('author', 'category').prefetch_related('tags').filter(is_deleted=False)
     
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+    @cached_property
+    def author(self):
+        return self.request.user
+    
+    @cached_property
+    def order_by(self):
+        order_by = self.kwargs.get('order_by')
         if self.order_by not in ('-created_at', '-upvote_count'):
             raise Http404('Invalid ordering parameter!')
-        return super().dispatch(request, *args, **kwargs)
-    
-    def setup(self, request: HttpRequest, *args: Any, **kwargs: Any) -> None:
-        super().setup(request, *args, **kwargs)
-        self.author = self.request.user
-        self.order_by = kwargs.get('order_by')
+        return order_by
 
 
 class ReportCreateView(LoginRequiredMixin, generic.CreateView):
@@ -209,25 +228,38 @@ class ReportCreateView(LoginRequiredMixin, generic.CreateView):
         context['object'] = self.obj
         context['back_url'] = self.get_success_url()
         return context
-
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        if self.type not in ('thread', 'reply'):
-            raise Http404('Invalid content parameters!')
-        return super().dispatch(request, *args, **kwargs)
     
-    def setup(self, request: HttpRequest, *args: Any, **kwargs: Any) -> None:
-        super().setup(request, *args, **kwargs)
-        self.user = self.request.user
-        pk = kwargs.get('pk')
-        self.type = kwargs.get('type')
+    @cached_property
+    def user(self):
+        return self.request.user
+    
+    @cached_property
+    def type(self):
+        return self.kwargs.get('type')
+    
+    @cached_property
+    def obj(self):
+        pk = self.kwargs.get('pk')
         match self.type:
             case 'thread':
-                self.obj = get_object_or_404(Thread, pk=pk)
-                self.thread_pk = self.obj.pk
+                obj = get_object_or_404(Thread, pk=pk)
             case 'reply':
-                self.obj = get_object_or_404(Reply, pk=pk)
-                self.thread_pk = self.obj.thread.pk
-    
+                obj = get_object_or_404(Reply, pk=pk)
+            case _:
+                raise Http404('Invalid content parameters!')
+        return obj
+
+    @cached_property
+    def thread_pk(self):
+        match self.type:
+            case 'thread':
+                thread_pk = self.obj.pk
+            case 'reply':
+                thread_pk = self.obj.thread.pk # type: ignore
+            case _:
+                raise Http404('Invalid content parameters!')
+        return thread_pk
+
 
 class TagCreateView(LoginRequiredMixin, generic.FormView):
     model = Tag
@@ -255,7 +287,7 @@ class ReportListView(LoginRequiredMixin, UserPassesTestMixin, generic.ListView):
     paginate_by = 10
 
     def get_queryset(self) -> QuerySet[Any]:
-        return Report.objects.order_by('status', '-created_at')
+        return Report.objects.select_related('reporter', 'reply', 'thread').order_by('status', '-created_at')
     
     def test_func(self) -> bool | None:
         return self.request.user.is_staff
@@ -277,14 +309,20 @@ class ReportUpdateStatusView(LoginRequiredMixin, UserPassesTestMixin, generic.Re
     def test_func(self) -> bool | None:
         return self.request.user.is_staff
     
-    def setup(self, request: HttpRequest, *args: Any, **kwargs: Any) -> None:
-        super().setup(request, *args, **kwargs)
-        pk = kwargs.get('pk')
-        self.object = get_object_or_404(Report, pk=pk)
+    @cached_property
+    def object(self):
+        pk = self.kwargs.get('pk')
+        return get_object_or_404(Report, pk=pk)
+    
+    @cached_property
+    def slug(self):
         if self.object.thread:
-            self.slug = self.object.thread.category.slug
+            slug = self.object.thread.category.slug
         elif self.object.reply:
-            self.slug = self.object.reply.thread.category.slug
+            slug = self.object.reply.thread.category.slug
+        else:
+            raise Http404('Invalid content parameters!')
+        return slug
 
 
 class UpvoteView(LoginRequiredMixin, generic.RedirectView):
@@ -300,24 +338,37 @@ class UpvoteView(LoginRequiredMixin, generic.RedirectView):
         self.object.update_upvotes(self.user)
         return super().post(request, *args, **kwargs)
     
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        if self.type not in ('thread', 'reply'):
-            raise Http404('Invalid content parameters!')
-        return super().dispatch(request, *args, **kwargs)
+    @cached_property
+    def user(self):
+        return self.request.user
     
-    def setup(self, request: HttpRequest, *args: Any, **kwargs: Any) -> None:
-        super().setup(request, *args, **kwargs)
-        self.user = self.request.user
-        pk = kwargs.get('pk')
-        self.type = kwargs.get('type')
+    @cached_property
+    def type(self):
+        return self.kwargs.get('type')
+    
+    @cached_property
+    def object(self):
+        pk = self.kwargs.get('pk')
         match self.type:
             case 'thread':
-                self.object = get_object_or_404(Thread, pk=pk)
-                self.slug = self.object.category.slug
+                object = get_object_or_404(Thread, pk=pk)
             case 'reply':
-                self.object = get_object_or_404(Reply, pk=pk)
-                self.slug = self.object.thread.category.slug
+                object = get_object_or_404(Reply, pk=pk)
+            case _:
+                raise Http404('Invalid content parameters!')
+        return object
     
+    @cached_property
+    def slug(self):
+        match self.type:
+            case 'thread':
+                slug = self.object.category.slug # type: ignore
+            case 'reply':
+                slug = self.object.thread.category.slug # type: ignore
+            case _:
+                raise Http404('Invalid content parameters!')
+        return slug
+
 
 class DeleteView(LoginRequiredMixin, UserPassesTestMixin, generic.RedirectView):
     permanent = False
@@ -332,25 +383,35 @@ class DeleteView(LoginRequiredMixin, UserPassesTestMixin, generic.RedirectView):
         self.object.soft_delete()
         return super().post(request, *args, **kwargs)
     
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        if self.type not in ('thread', 'reply'):
-            raise Http404('Invalid content parameters!')
-        return super().dispatch(request, *args, **kwargs)
-    
     def test_func(self) -> bool | None:
         return self.request.user.is_staff or self.object.author == self.request.user
     
-    def setup(self, request: HttpRequest, *args: Any, **kwargs: Any) -> None:
-        super().setup(request, *args, **kwargs)
-        pk = kwargs.get('pk')
-        self.type = kwargs.get('type')
+    @cached_property
+    def object(self):
+        pk = self.kwargs.get('pk')
         match self.type:
             case 'thread':
-                self.object = get_object_or_404(Thread, pk=pk)
-                self.slug = self.object.category.slug
+                object = get_object_or_404(Thread, pk=pk)
             case 'reply':
-                self.object = get_object_or_404(Reply, pk=pk)
-                self.slug = self.object.thread.category.slug
+                object = get_object_or_404(Reply, pk=pk)
+            case _:
+                raise Http404('Invalid content parameters!')
+        return object
+    
+    @cached_property
+    def slug(self):
+        match self.type:
+            case 'thread':
+                slug = self.object.category.slug # type: ignore
+            case 'reply':
+                slug = self.object.thread.category.slug # type: ignore
+            case _:
+                raise Http404('Invalid content parameters!')
+        return slug
+
+    @cached_property
+    def type(self):
+        return self.kwargs.get('type')
 
 
 class LockView(LoginRequiredMixin, UserPassesTestMixin, generic.RedirectView):
@@ -369,8 +430,11 @@ class LockView(LoginRequiredMixin, UserPassesTestMixin, generic.RedirectView):
     def test_func(self) -> bool | None:
         return self.request.user.is_staff
     
-    def setup(self, request: HttpRequest, *args: Any, **kwargs: Any) -> None:
-        super().setup(request, *args, **kwargs)
-        pk = kwargs.get('pk')
-        self.object = get_object_or_404(Thread, pk=pk)
-        self.slug = self.object.category.slug
+    @cached_property
+    def object(self):
+        pk = self.kwargs.get('pk')
+        return get_object_or_404(Thread, pk=pk)
+    
+    @cached_property
+    def slug(self):
+        return self.object.category.slug
