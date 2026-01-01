@@ -1,4 +1,4 @@
-:80 {
+forumdeck.sreyash.tech {
     encode zstd gzip
     header {
         Permissions-Policy "interest-cohort=()"
@@ -15,4 +15,8 @@
         file_server
     }
     reverse_proxy web:8000
+}
+
+www.forumdeck.sreyash.tech {
+    redir https://forumdeck.sreyash.tech{uri}
 }
