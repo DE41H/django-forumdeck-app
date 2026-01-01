@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-center align-items-center" style="min-height: 70vh;">
-    <div class="widget-box p-5 text-center" style="max-width: 420px; width: 100%;">
+    <div class="content-box p-5 text-center" style="max-width: 420px; width: 100%;">
         
         <div class="mb-4 text-dark"><i class="bi bi-shield-lock display-4"></i></div>
         <h2 class="fw-bold mb-2">Welcome Back</h2>
@@ -18,7 +18,7 @@
             {% endfor %}
             {% for field in form %}
                 {% for error in field.errors %}
-                    <div><i class="bi bi-exclamation-circle me-2\"></i>{{ field.label }}: {{ error }}</div>
+                    <div><i class="bi bi-exclamation-circle me-2"></i>{{ field.label }}: {{ error }}</div>
                 {% endfor %}
             {% endfor %}
         </div>

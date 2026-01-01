@@ -1,20 +1,20 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="text-center mb-5 pt-2">
+<div class="content-box text-center mb-5">
     <h1 class="fw-bold display-6 mb-2 text-dark">Explore Topics</h1>
-    <p class="text-secondary">Select a category to join the conversation.</p>
+    <p class="text-secondary mb-0">Select a category to join the conversation.</p>
 </div>
 
 <div class="row g-4">
     {% for category in categories %}
     <div class="col-md-6">
         <a href="{% url 'threads:thread_list' slug=category.slug order_by='-created_at' %}" class="text-decoration-none">
-            <div class="widget-box h-100 p-4 text-center transition-lift border-0">
+            <div class="category-card h-100 p-4 text-center transition-lift border-0">
                 <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 50px; height: 50px;">
                     <span class="fs-4 fw-bold text-dark">{{ category.name|slice:":1" }}</span>
                 </div>
-                <h5 class="fw-bold text-dark mb-1">{{ category.name }}</h5>
+                <h5 class="card-title fw-bold text-dark mb-1">{{ category.name }}</h5>
                 <p class="text-muted small mb-0">{{ category.threads.count }} active threads</p>
             </div>
         </a>

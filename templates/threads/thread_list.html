@@ -1,49 +1,52 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="mb-5">
+<div class="content-box mb-4">
     <h1 class="fw-bold display-6 mb-1 text-dark">{{ category.name }}</h1>
-    <p class="text-secondary">{{ category.threads.count }} discussions active</p>
+    <p class="text-secondary mb-0">{{ category.threads.count }} discussions active</p>
 </div>
 
 <div class="d-flex flex-column gap-3">
     {% for thread in threads %}
-    <div class="widget-box p-4 mb-0 position-relative">
+    <div class="thread-card">
         <div class="d-flex gap-3">
             <div class="d-none d-sm-block pt-1">
                 {% if thread.author.avatar %}
-                    <img src="{{ thread.author.avatar }}" class="rounded-circle object-fit-cover border" width="48" height="48" alt="{{ thread.author.username }}">
+                    <img src="{{ thread.author.avatar }}" class="rounded-circle object-fit-cover border" width="48" height="48" alt="{{ thread.author.username }}" loading="lazy">
                 {% else %}
-                    <img src="https://ui-avatars.com/api/?name={{ thread.author.username }}&background=f3f4f6&color=000&size=48" class="rounded-circle border" width="48" height="48" alt="{{ thread.author.username }}">
+                    <img src="https://ui-avatars.com/api/?name={{ thread.author.username|urlencode }}&background=f3f4f6&color=000&size=48" class="rounded-circle border" width="48" height="48" alt="{{ thread.author.username }}" loading="lazy">
                 {% endif %}
             </div>
             
             <div class="flex-grow-1 min-w-0">
-                <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="meta-row mb-2">
                     <div>
                         <span class="fw-bold text-dark small">{{ thread.author.full_name|default:thread.author.username }}</span>
                         <span class="text-secondary small fw-normal">@{{ thread.author.username }}</span>
                     </div>
-                    <span class="text-muted small">{{ thread.created_at|timesince }} ago</span>
+                    <span class="text-muted small ms-auto">{{ thread.created_at|timesince }} ago</span>
                 </div>
 
-                <a href="{% url 'threads:thread_detail' pk=thread.pk order_by=view.kwargs.order_by %}" class="text-decoration-none text-dark stretched-link">
-                    <h5 class="fw-bold mb-2">{{ thread.title }}</h5>
+                <!-- FIXED: Removed stretched-link, made title a proper link -->
+                <a href="{% url 'threads:thread_detail' pk=thread.pk order_by=view.kwargs.order_by %}" class="text-decoration-none text-dark">
+                    <h5 class="thread-title fw-bold mb-2">{{ thread.title }}</h5>
                 </a>
                 
-                <p class="text-secondary mb-3 text-truncate">{{ thread.raw_content|truncatechars:140 }}</p>
+                <p class="text-secondary mb-3">{{ thread.raw_content|truncatechars:140 }}</p>
 
-                <div class="d-flex align-items-center gap-3 position-relative z-2 flex-wrap">
-                    <form action="{% url 'threads:upvote' pk=thread.pk type='thread' %}?next={{ request.get_full_path }}" method="post">
+                <!-- FIXED: Removed position-relative z-2 that was conflicting -->
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <form action="{% url 'threads:upvote' pk=thread.pk type='thread' %}?next={{ request.get_full_path|urlencode }}" method="post" class="d-inline">
                         {% csrf_token %}
-                        <button class="btn btn-sm border px-3 py-1 fw-bold d-flex align-items-center gap-2 {% if request.user in thread.upvotes.all %}btn-dark{% else %}btn-white text-muted{% endif %}" style="border-radius: 20px;">
+                        <button type="submit" class="btn btn-sm border px-3 py-1 fw-bold d-flex align-items-center gap-2 {% if request.user in thread.upvotes.all %}btn-dark{% else %}btn-white text-muted{% endif %}" style="border-radius: 20px;">
                             <i class="bi bi-caret-up-fill"></i> {{ thread.upvote_count }}
                         </button>
                     </form>
 
-                    <div class="text-muted small">
-                        <i class="bi bi-chat-fill opacity-50 me-1"></i> {{ thread.reply_count }}
-                    </div>
+                    <!-- FIXED: Using replies.count instead of reply_count for real-time accuracy -->
+                    <a href="{% url 'threads:thread_detail' pk=thread.pk order_by=view.kwargs.order_by %}" class="text-decoration-none text-muted small d-flex align-items-center gap-1">
+                        <i class="bi bi-chat-fill opacity-50"></i> {{ thread.replies.count }}
+                    </a>
                     
                     {% for course in thread.tagged_courses.all %}
                     <span class="badge bg-light text-dark border fw-normal">
@@ -56,7 +59,8 @@
                         <i class="bi bi-file-earmark-text text-secondary me-1"></i>{{ doc.title|truncatechars:20 }}
                     </span>
                     {% endfor %}
-                    <div class="ms-auto d-flex gap-1">
+                    
+                    <div class="ms-auto d-flex gap-1 flex-wrap">
                         {% for tag in thread.tags.all %}
                         <span class="badge tag-badge border fw-medium rounded-pill px-2" data-color="{{ tag.color }}">
                             {{ tag.name }}
@@ -68,9 +72,9 @@
         </div>
     </div>
     {% empty %}
-    <div class="text-center py-5 opacity-50">
+    <div class="content-box text-center py-5 opacity-50">
         <i class="bi bi-inbox fs-1"></i>
-        <p class="mt-2">No threads yet.</p>
+        <p class="mt-2 mb-0">No threads yet.</p>
     </div>
     {% endfor %}
 </div>
@@ -145,7 +149,7 @@
 
 <div class="mb-4">
     <label class="sidebar-label">Search</label>
-    <form method="get">
+    <form method="get" action="">
         <input type="text" name="q" class="form-control" placeholder="Search topics..." value="{{ request.GET.q|default:'' }}">
         {% if request.GET.f %}
             <input type="hidden" name="f" value="{{ request.GET.f }}">
@@ -156,11 +160,11 @@
 <div class="mb-4">
     <label class="sidebar-label">Sort Feed</label>
     <div class="d-flex flex-column gap-1">
-        <a href="{% url 'threads:thread_list' slug=category.slug order_by='-created_at' %}" 
+        <a href="{% url 'threads:thread_list' slug=category.slug order_by='-created_at' %}{% if request.GET.q %}?q={{ request.GET.q }}{% endif %}{% if request.GET.f %}{% if request.GET.q %}&{% else %}?{% endif %}f={{ request.GET.f }}{% endif %}" 
            class="nav-item {% if view.kwargs.order_by == '-created_at' %}active{% endif %}">
             <i class="bi bi-clock opacity-50"></i> Newest First
         </a>
-        <a href="{% url 'threads:thread_list' slug=category.slug order_by='-upvote_count' %}" 
+        <a href="{% url 'threads:thread_list' slug=category.slug order_by='-upvote_count' %}{% if request.GET.q %}?q={{ request.GET.q }}{% endif %}{% if request.GET.f %}{% if request.GET.q %}&{% else %}?{% endif %}f={{ request.GET.f }}{% endif %}" 
            class="nav-item {% if view.kwargs.order_by == '-upvote_count' %}active{% endif %}">
             <i class="bi bi-graph-up-arrow opacity-50"></i> Top Rated
         </a>
@@ -216,8 +220,6 @@
             }
         });
         
-        // Similarly apply colors to main feed tags if needed, 
-        // though your template used a different class 'tag-badge' there.
         const feedTags = document.querySelectorAll('.tag-badge');
         feedTags.forEach(tag => {
              const color = tag.getAttribute('data-color');

@@ -7,8 +7,8 @@
     </a>
 </div>
 
-<div class="widget-box p-5 border-0 shadow-sm border-top border-danger border-4">
-    <div class="d-flex align-items-center gap-3 mb-4">
+<div class="content-box p-5 border-0 shadow-sm border-top border-danger border-4">
+    <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
         <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-3">
             <i class="bi bi-flag-fill fs-4"></i>
         </div>
@@ -32,7 +32,7 @@
             </div>
         {% endif %}
 
-        <div class="mb-4">
+        <div class="form-group mb-4">
             <label class="sidebar-label text-dark mb-2">Reason</label>
             {{ form.reason }}
         </div>
@@ -40,6 +40,7 @@
         <button type="submit" class="btn btn-danger w-100 fw-bold py-2">Submit Report</button>
     </form>
 </div>
+
 <style>
     textarea { width: 100%; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-sharp); min-height: 120px; }
 </style>

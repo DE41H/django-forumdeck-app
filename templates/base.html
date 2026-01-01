@@ -9,12 +9,25 @@
     
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💬</text></svg>">
 
-    <meta name="description" content="Join the conversation on ForumDeck.">
-    <meta property="og:title" content="ForumDeck">
-    <meta property="og:description" content="A community for thoughtful discussions.">
+    <!-- SEO & Social Meta -->
+    <meta name="description" content="{% block description %}Join the conversation on ForumDeck - A community for thoughtful discussions.{% endblock %}">
+    <meta name="theme-color" content="#ffffff">
+    <meta property="og:title" content="{% block og_title %}ForumDeck{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}A community for thoughtful discussions.{% endblock %}">
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="ForumDeck">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{% block twitter_title %}ForumDeck{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}A community for thoughtful discussions.{% endblock %}">
     
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Preconnect for faster loading -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://ui-avatars.com">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
@@ -29,48 +42,291 @@
             --sidebar-width: 280px;
             --radius-sharp: 0.5rem;   
             --shadow-sharp: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
-            --brand-color: #2563EB; /* Added a Brand Color */
+            --brand-color: #2563EB;
+            --danger-color: #DC2626;
+            --success-color: #059669;
+            --warning-color: #D97706;
+        }
+
+        /* Global wrapping & box sizing */
+        html {
+            scroll-behavior: smooth;
+            height: 100%;
+        }
+
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+            word-wrap: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
 
         body { 
             background-color: var(--bg-body); 
             font-family: var(--font-main); 
             color: var(--text-primary);
-            overflow-x: hidden; 
             margin: 0;
-        }
-
-        .app-layout {
-            display: grid;
-            grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-width);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
             min-height: 100vh;
         }
 
+        /* Focus visible for better accessibility */
+        *:focus-visible {
+            outline: 2px solid var(--brand-color);
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
+
+        *:focus:not(:focus-visible) {
+            outline: none;
+        }
+
+        /* CRITICAL FIX: Grid layout with align-items: start for sticky to work */
+        .app-layout {
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-width);
+            align-items: start; /* CRITICAL: Prevents grid items from stretching */
+            min-height: 100vh;
+            gap: 0;
+        }
+
+        /* Handle empty right sidebar */
+        .app-layout:has(.sidebar-panel.right:empty) {
+            grid-template-columns: var(--sidebar-width) 1fr;
+        }
+
+        /* CRITICAL FIX: Sidebar sticky positioning */
         .sidebar-panel {
             background-color: var(--bg-sidebar);
-            height: 100vh;
             position: sticky;
             top: 0;
+            align-self: start; /* CRITICAL: Allows sticky to work */
+            height: 100vh;
+            max-height: 100vh; /* Prevent overflow issues */
+            overflow-y: auto;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
             padding: 2rem 1.5rem;
             border-right: 1px solid var(--border-color);
-            z-index: 10;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+            will-change: transform; /* Performance optimization */
         }
+        
+        .sidebar-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .sidebar-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .sidebar-panel::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 3px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .sidebar-panel::-webkit-scrollbar-thumb:hover {
+            background-color: #9CA3AF;
+        }
+        
         .sidebar-panel.right {
             border-right: none;
             border-left: 1px solid var(--border-color);
+        }
+
+        /* Hide empty right sidebar */
+        .sidebar-panel.right:empty {
+            display: none;
         }
 
         .main-scroll {
             background-color: var(--bg-body);
             padding: 3rem 2rem;
             min-height: 100vh;
+            width: 100%;
+            contain: layout style paint; /* Performance optimization */
         }
         
         .content-container {
             max-width: 768px; 
             margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Generic content boxes & cards for inner templates */
+        .content-box {
+            display: block;
+            width: 100%;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            border-radius: var(--radius-sharp);
+            border: 1px solid var(--border-color);
+            background-color: #ffffff;
+            box-shadow: var(--shadow-sharp);
+            contain: layout paint; /* Performance */
+        }
+
+        .thread-card,
+        .reply-card,
+        .report-card,
+        .tag-card,
+        .category-card {
+            display: block;
+            width: 100%;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
+            border-radius: var(--radius-sharp);
+            border: 1px solid var(--border-color);
+            background-color: #ffffff;
+            box-shadow: var(--shadow-sharp);
+            overflow-wrap: anywhere;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+            contain: layout paint;
+        }
+
+        .thread-card:hover,
+        .reply-card:hover,
+        .category-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: translateY(-1px);
+        }
+
+        .thread-title,
+        .reply-title,
+        .card-title {
+            font-weight: 600;
+            font-size: 1.05rem;
+            margin-bottom: 0.25rem;
+            overflow-wrap: anywhere;
+            line-height: 1.4;
+        }
+
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Forms and inputs */
+        form {
+            display: block;
+            width: 100%;
+        }
+
+        form .form-group {
+            margin-bottom: 0.75rem;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="number"],
+        input[type="url"],
+        input[type="tel"],
+        input[type="search"],
+        textarea,
+        select {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background-color: #fff;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: var(--brand-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            outline: none;
+        }
+
+        input:disabled,
+        textarea:disabled,
+        select:disabled {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .btn,
+        button,
+        input[type="submit"] {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.4rem 0.85rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            white-space: normal;
+            text-align: center;
+            transition: all 0.15s ease;
+            font-weight: 500;
+            text-decoration: none;
+            line-height: 1.5;
+        }
+
+        .btn:hover:not(:disabled),
+        button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:active:not(:disabled),
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled,
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            word-wrap: break-word;
+        }
+
+        th, td {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        th {
+            font-weight: 600;
+            text-align: left;
+            background-color: #f9fafb;
         }
 
         .nav-item {
@@ -81,14 +337,34 @@
             color: var(--text-secondary);
             font-weight: 500;
             border-radius: var(--radius-sharp);
-            transition: all 0.15s;
+            transition: all 0.15s ease;
             text-decoration: none;
             margin-bottom: 2px;
         }
-        .nav-item:hover { background-color: #F9FAFB; color: var(--text-primary); }
-        .nav-item.active { background-color: #EFF6FF; color: var(--brand-color); font-weight: 700; } /* Updated Active State */
-        .nav-item.admin-link { color: #DC2626; }
-        .nav-item.admin-link:hover { background-color: #FEF2F2; }
+        
+        .nav-item:hover { 
+            background-color: #F9FAFB; 
+            color: var(--text-primary);
+            transform: translateX(2px);
+        }
+        
+        .nav-item.active { 
+            background-color: #EFF6FF; 
+            color: var(--brand-color); 
+            font-weight: 700;
+        }
+        
+        .nav-item.admin-link { 
+            color: var(--danger-color); 
+        }
+        
+        .nav-item.admin-link:hover { 
+            background-color: #FEF2F2; 
+        }
+        
+        .nav-item.admin-link.active { 
+            background-color: #FEF2F2; 
+        }
 
         .widget-box {
             background: #fff;
@@ -109,23 +385,292 @@
             display: block;
         }
 
+        /* Loading state */
+        .loading-spinner {
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--brand-color);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Fade in animation for content */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .content-container > * {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Mobile menu */
+        .mobile-header {
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            background-color: #fff !important;
+        }
+
+        /* Skip to content for accessibility */
+        .skip-to-content {
+            position: absolute;
+            left: -9999px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            z-index: -999;
+        }
+
+        .skip-to-content:focus {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: auto;
+            height: auto;
+            padding: 8px 16px;
+            background: var(--brand-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            z-index: 10000;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Empty states */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            opacity: 0.3;
+            margin-bottom: 1rem;
+        }
+
+        /* Error states */
+        .error-message {
+            background-color: #FEF2F2;
+            border: 1px solid #FCA5A5;
+            color: var(--danger-color);
+            padding: 1rem;
+            border-radius: var(--radius-sharp);
+            margin-bottom: 1rem;
+        }
+
+        /* Success states */
+        .success-message {
+            background-color: #ECFDF5;
+            border: 1px solid #6EE7B7;
+            color: var(--success-color);
+            padding: 1rem;
+            border-radius: var(--radius-sharp);
+            margin-bottom: 1rem;
+        }
+
+        /* Image lazy loading blur effect */
+        img[loading="lazy"] {
+            filter: blur(0);
+            transition: filter 0.3s;
+        }
+
+        img[loading="lazy"]:not([src]) {
+            filter: blur(10px);
+        }
+
+        /* Code blocks */
+        code {
+            background-color: #f3f4f6;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.875em;
+            font-family: 'Courier New', monospace;
+        }
+
+        pre {
+            background-color: #1f2937;
+            color: #f3f4f6;
+            padding: 1rem;
+            border-radius: var(--radius-sharp);
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            color: inherit;
+        }
+
+        /* Badge improvements */
+        .badge {
+            font-weight: 500;
+            padding: 0.25em 0.6em;
+        }
+
+        /* Link styles */
+        a {
+            color: var(--brand-color);
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: #1d4ed8;
+        }
+
+        /* Selection color */
+        ::selection {
+            background-color: rgba(37, 99, 235, 0.2);
+            color: var(--text-primary);
+        }
+
+        /* Performance: Reduce repaints */
+        img {
+            content-visibility: auto;
+        }
+
+        /* Print styles */
+        @media print {
+            .sidebar-panel,
+            .mobile-header,
+            .btn,
+            button,
+            .skip-to-content {
+                display: none !important;
+            }
+            
+            .app-layout {
+                display: block;
+            }
+            
+            .main-scroll {
+                padding: 0;
+            }
+
+            body {
+                background-color: white;
+            }
+
+            .thread-card,
+            .reply-card,
+            .content-box {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                page-break-inside: avoid;
+            }
+        }
+
+        /* Responsive breakpoints */
         @media (max-width: 1200px) {
-            .app-layout { display: block; }
-            .sidebar-panel { display: none; } 
-            .main-scroll { padding: 1rem; }
+            .app-layout { 
+                display: block !important;
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar-panel { 
+                display: none !important;
+            } 
+            
+            .main-scroll { 
+                padding: 1rem; 
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-scroll {
+                padding: 0.75rem;
+            }
+
+            .content-box,
+            .thread-card,
+            .reply-card {
+                padding: 0.75rem 1rem;
+            }
+
+            h1, .h1 {
+                font-size: 1.75rem;
+            }
+
+            h2, .h2 {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Reduced motion for accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            [data-theme="auto"] {
+                --bg-body: #111827;
+                --bg-sidebar: #1f2937;
+                --text-primary: #f9fafb;
+                --text-secondary: #9ca3af;
+                --border-color: #374151;
+            }
+        }
+
+        [data-theme="dark"] {
+            --bg-body: #111827;
+            --bg-sidebar: #1f2937;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --border-color: #374151;
+        }
+
+        [data-theme="dark"] body {
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .content-box,
+        [data-theme="dark"] .thread-card,
+        [data-theme="dark"] .reply-card,
+        [data-theme="dark"] .widget-box {
+            background-color: var(--bg-sidebar);
+            border-color: var(--border-color);
         }
     </style>
+    
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- Skip to content for screen readers -->
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
 
-    <div class="d-xl-none bg-white border-bottom p-3 sticky-top d-flex justify-content-between align-items-center">
-        <span class="fw-bold fs-5">ForumDeck.</span>
-        <button class="btn btn-sm btn-light border"><i class="bi bi-list fs-4"></i></button>
+    <!-- Mobile header -->
+    <div class="mobile-header d-xl-none bg-white border-bottom p-3 sticky-top d-flex justify-content-between align-items-center">
+        <a href="{% url 'threads:category_list' %}" class="text-decoration-none">
+            <span class="fw-bold fs-5 text-dark">ForumDeck<span class="text-primary">.</span></span>
+        </a>
+        <button class="btn btn-sm btn-light border" aria-label="Toggle menu" type="button">
+            <i class="bi bi-list fs-4" aria-hidden="true"></i>
+        </button>
     </div>
 
     <div class="app-layout">
         
-        <aside class="sidebar-panel">
+        <!-- Left sidebar -->
+        <aside class="sidebar-panel" role="navigation" aria-label="Main navigation">
             <div class="mb-5 px-2">
                 <a href="{% url 'threads:category_list' %}" class="text-decoration-none text-dark">
                     <h3 class="fw-bold m-0 tracking-tight">ForumDeck<span class="text-primary">.</span></h3>
@@ -133,14 +678,18 @@
             </div>
 
             <nav class="d-flex flex-column flex-grow-1">
-                <a href="{% url 'threads:category_list' %}" class="nav-item {% if request.resolver_match.url_name == 'category_list' %}active{% endif %}">
-                    <i class="bi bi-grid-fill"></i> Categories
+                <a href="{% url 'threads:category_list' %}" 
+                   class="nav-item {% if request.resolver_match.url_name == 'category_list' %}active{% endif %}" 
+                   {% if request.resolver_match.url_name == 'category_list' %}aria-current="page"{% endif %}>
+                    <i class="bi bi-grid-fill" aria-hidden="true"></i> Categories
                 </a>
                 
                 {% if user.is_staff %}
                 <div class="mt-4 mb-2 px-3 sidebar-label">Admin</div>
-                <a href="{% url 'threads:report_list' %}" class="nav-item admin-link {% if 'report' in request.path %}active{% endif %}">
-                    <i class="bi bi-shield-lock-fill"></i> Moderation
+                <a href="{% url 'threads:report_list' %}" 
+                   class="nav-item admin-link {% if 'report' in request.path %}active{% endif %}" 
+                   {% if 'report' in request.path %}aria-current="page"{% endif %}>
+                    <i class="bi bi-shield-lock-fill" aria-hidden="true"></i> Moderation
                 </a>
                 {% endif %}
             </nav>
@@ -149,19 +698,32 @@
                 {% if user.is_authenticated %}
                     <div class="d-flex align-items-center gap-3 px-2">
                         {% if user.avatar %}
-                            <img src="{{ user.avatar }}" class="rounded-circle object-fit-cover" width="36" height="36" alt="{{ user.username }}">
+                            <img src="{{ user.avatar }}" 
+                                 class="rounded-circle object-fit-cover" 
+                                 width="36" 
+                                 height="36" 
+                                 alt="Profile picture of {{ user.username }}" 
+                                 loading="lazy"
+                                 onerror="this.src='https://ui-avatars.com/api/?name={{ user.username|urlencode }}&background=000&color=fff'">
                         {% else %}
-                            <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=000&color=fff" class="rounded-circle" width="36" height="36" alt="{{ user.username }}">
+                            <img src="https://ui-avatars.com/api/?name={{ user.username|urlencode }}&background=000&color=fff" 
+                                 class="rounded-circle" 
+                                 width="36" 
+                                 height="36" 
+                                 alt="Profile picture of {{ user.username }}" 
+                                 loading="lazy">
                         {% endif %}
                         
-                        <div class="lh-1 overflow-hidden">
+                        <div class="lh-1 overflow-hidden flex-grow-1 min-w-0">
                             <div class="small fw-bold text-dark text-truncate">{{ user.full_name|default:user.username }}</div>
                             <div class="text-muted text-truncate" style="font-size: 0.75rem;">@{{ user.username }}</div>
                         </div>
                         
                         <form action="{% url 'account_logout' %}" method="post" class="ms-auto">
                             {% csrf_token %}
-                            <button class="btn btn-sm btn-light border-0 text-muted" title="Log Out"><i class="bi bi-box-arrow-right"></i></button>
+                            <button type="submit" class="btn btn-sm btn-light border-0 text-muted" title="Log Out" aria-label="Log out">
+                                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                            </button>
                         </form>
                     </div>
                 {% else %}
@@ -170,13 +732,14 @@
             </div>
         </aside>
 
-        <main class="main-scroll">
+        <!-- Main content -->
+        <main class="main-scroll" id="main-content" role="main">
             <div class="content-container">
                 {% if messages %}
-                    <div class="d-flex flex-column gap-3 mb-4">
+                    <div class="d-flex flex-column gap-3 mb-4" role="alert" aria-live="polite">
                         {% for message in messages %}
-                        <div class="alert alert-light border shadow-sm d-flex align-items-center gap-3 py-3" role="alert">
-                             <i class="bi bi-info-circle-fill text-primary"></i>
+                        <div class="alert alert-{{ message.tags|default:'info' }} border shadow-sm d-flex align-items-center gap-3 py-3" role="alert">
+                             <i class="bi bi-{% if message.tags == 'error' or message.tags == 'danger' %}exclamation-circle{% elif message.tags == 'success' %}check-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}-fill" aria-hidden="true"></i>
                              <div class="fw-medium">{{ message }}</div>
                         </div>
                         {% endfor %}
@@ -187,15 +750,17 @@
             </div>
         </main>
 
-        <aside class="sidebar-panel right">
+        <!-- Right sidebar -->
+        <aside class="sidebar-panel right" role="complementary" aria-label="Sidebar">
             {% block right_sidebar %}{% endblock %}
         </aside>
 
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
+            // Tag badge coloring
             document.querySelectorAll('.tag-badge').forEach(badge => {
                 const color = badge.getAttribute('data-color');
                 if (color) {
@@ -204,7 +769,119 @@
                     badge.style.backgroundColor = '#FFFFFF';
                 }
             });
+
+            // Form submission loading state with debounce
+            const submittedForms = new WeakSet();
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    if (submittedForms.has(this)) {
+                        e.preventDefault();
+                        return false;
+                    }
+                    
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    if (submitBtn && !submitBtn.disabled) {
+                        submitBtn.disabled = true;
+                        const originalText = submitBtn.innerHTML;
+                        submitBtn.innerHTML = '<span class="loading-spinner me-2"></span> Processing...';
+                        submittedForms.add(this);
+                        
+                        // Re-enable after 5 seconds as fallback
+                        setTimeout(() => {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                            submittedForms.delete(this);
+                        }, 5000);
+                    }
+                });
+            });
+
+            // Smooth scroll to anchors
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    const href = this.getAttribute('href');
+                    if (href !== '#' && href !== '#!' && href.length > 1) {
+                        e.preventDefault();
+                        const target = document.querySelector(href);
+                        if (target) {
+                            target.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start'
+                            });
+                            if (history.pushState) {
+                                history.pushState(null, null, href);
+                            }
+                        }
+                    }
+                });
+            });
+
+            // Auto-dismiss alerts after 5 seconds
+            document.querySelectorAll('.alert').forEach(alert => {
+                setTimeout(() => {
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                }, 5000);
+            });
+
+            // Image error handling with retry
+            document.querySelectorAll('img').forEach(img => {
+                img.addEventListener('error', function() {
+                    if (!this.dataset.errorHandled) {
+                        this.dataset.errorHandled = 'true';
+                        const username = this.alt.replace('Profile picture of ', '').replace('Profile picture', 'User');
+                        this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`;
+                    }
+                });
+            });
+
+            // External link indicator
+            document.querySelectorAll('a[target="_blank"]').forEach(link => {
+                link.setAttribute('rel', 'noopener noreferrer');
+            });
+
+            // Lazy load images observer
+            if ('IntersectionObserver' in window) {
+                const imageObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            if (img.dataset.src) {
+                                img.src = img.dataset.src;
+                                img.removeAttribute('data-src');
+                            }
+                            observer.unobserve(img);
+                        }
+                    });
+                }, {
+                    rootMargin: '50px' // Load images 50px before they enter viewport
+                });
+
+                document.querySelectorAll('img[data-src]').forEach(img => {
+                    imageObserver.observe(img);
+                });
+            }
+
+            // Service Worker registration for PWA (optional)
+            if ('serviceWorker' in navigator) {
+                // Uncomment to enable service worker
+                // navigator.serviceWorker.register('/sw.js').catch(() => {});
+            }
+
+            // Console easter egg
+            console.log(
+                '%cForumDeck 💬',
+                'font-size: 24px; font-weight: bold; color: #2563EB;'
+            );
+            console.log(
+                '%cBuilt with Django & Bootstrap',
+                'font-size: 12px; color: #6B7280;'
+            );
         });
     </script>
+    
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
