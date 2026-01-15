@@ -1,4 +1,4 @@
-:8002 {
+:80 {
     handle_path /static/* {
         root * /data/static
         file_server
