@@ -2,16 +2,9 @@
 
 {% block content %}
 
-<!-- 1. SAFETY: Normalize the variable name (reports vs report_list) -->
-{% if reports %}
-    {% with data_list=reports %}
-    <!-- Found 'reports' -->
-{% elif report_list %}
-    {% with data_list=report_list %}
-    <!-- Found 'report_list' -->
-{% else %}
-    {% with data_list=None %}
-{% endif %}
+{# SIMPLIFIED LOGIC: Alias 'reports' to 'report_list' using default #}
+{# This avoids the nested if/with SyntaxError completely #}
+{% with data_list=reports|default:report_list %}
 
 <div class="content-box mb-5">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -21,7 +14,7 @@
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-danger rounded-pill px-3 py-2 border border-danger bg-opacity-10 text-danger">
-                <!-- 2. SAFETY: Calculate total correctly with or without pagination -->
+                <!-- Calculate total correctly with or without pagination -->
                 {% if page_obj %}
                     {{ page_obj.paginator.count }} Total
                 {% else %}
@@ -63,7 +56,7 @@
                 <div class="text-dark fw-medium">{{ report.reason }}</div>
             </div>
 
-            <!-- 3. CRITICAL FIX: Safe Content Access -->
+            <!-- CRITICAL FIX: Safe Content Access -->
             <!-- We NEVER access .content until we verify the object exists -->
             <div class="p-3 bg-white rounded-3 mb-4 border shadow-sm">
                 <label class="sidebar-label mb-2">Offending Content</label>
@@ -186,11 +179,7 @@
     {% endif %}
 </div>
 
-{% if reports %}
-    {% endwith %}
-{% elif report_list %}
-    {% endwith %}
-{% endif %}
+{% endwith %}
 
 {% endblock %}
 
