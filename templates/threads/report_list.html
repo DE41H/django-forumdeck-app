@@ -1,13 +1,14 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<!-- SAFETY LOGIC: Detect correct variable name -->
+
+<!-- 1. SAFETY: Normalize the variable name (reports vs report_list) -->
 {% if reports %}
     {% with data_list=reports %}
-    <!-- Using variable 'reports' -->
+    <!-- Found 'reports' -->
 {% elif report_list %}
     {% with data_list=report_list %}
-    <!-- Using variable 'report_list' -->
+    <!-- Found 'report_list' -->
 {% else %}
     {% with data_list=None %}
 {% endif %}
@@ -20,7 +21,7 @@
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-danger rounded-pill px-3 py-2 border border-danger bg-opacity-10 text-danger">
-                <!-- SAFETY LOGIC: Get total count safely -->
+                <!-- 2. SAFETY: Calculate total correctly with or without pagination -->
                 {% if page_obj %}
                     {{ page_obj.paginator.count }} Total
                 {% else %}
@@ -36,6 +37,7 @@
     
     <div class="report-card p-0 overflow-hidden {% if report.status == 'RESOLVED' %}opacity-75 bg-light{% endif %}" style="transition: all 0.2s;">
         
+        <!-- HEADER -->
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2 {% if report.status == 'RESOLVED' %}bg-secondary bg-opacity-10{% else %}bg-light{% endif %}">
             <span class="small text-muted">
                 <i class="bi bi-flag-fill {% if report.status == 'RESOLVED' %}text-muted{% else %}text-danger{% endif %} me-2"></i>
@@ -61,45 +63,50 @@
                 <div class="text-dark fw-medium">{{ report.reason }}</div>
             </div>
 
-            <!-- CRITICAL FIX: Safe Content Access -->
+            <!-- 3. CRITICAL FIX: Safe Content Access -->
+            <!-- We NEVER access .content until we verify the object exists -->
             <div class="p-3 bg-white rounded-3 mb-4 border shadow-sm">
                 <label class="sidebar-label mb-2">Offending Content</label>
                 <div class="text-secondary fst-italic text-break">
                     
                     {% if report.thread %}
-                        <!-- It is a Thread Report -->
+                        <!-- CASE A: It is a Thread Report -->
                         <strong class="d-block mb-1">{{ report.thread.title }}</strong>
                         <div>"{{ report.thread.content|striptags|truncatechars:200 }}"</div>
                         
                     {% elif report.reply %}
-                        <!-- It is a Reply Report -->
-                        <strong class="d-block mb-1">Reply in: {{ report.reply.thread.title|default:"Deleted Thread" }}</strong>
+                        <!-- CASE B: It is a Reply Report -->
+                        <!-- Check if the reply's parent thread still exists -->
+                        {% if report.reply.thread %}
+                            <strong class="d-block mb-1">Reply in: {{ report.reply.thread.title }}</strong>
+                        {% else %}
+                            <strong class="d-block mb-1 text-danger">Reply in: [Deleted Thread]</strong>
+                        {% endif %}
+                        
                         <div>"{{ report.reply.content|striptags|truncatechars:200 }}"</div>
                         
                     {% else %}
-                        <!-- Content is Missing/Deleted -->
-                        <span class="text-muted">(Content unavailable)</span>
+                        <!-- CASE C: Orphaned Report (Content Deleted) -->
+                        <span class="text-muted">(Content unavailable / deleted)</span>
                     {% endif %}
                     
                 </div>
                 
+                <!-- Links (Safe Access) -->
                 <div class="mt-2 text-end border-top pt-2">
                     {% if report.thread %}
                         <a href="{% url 'threads:thread_detail' pk=report.thread.pk order_by='-created_at' %}" class="small fw-bold text-decoration-none" target="_blank">
                             View Thread <i class="bi bi-box-arrow-up-right ms-1"></i>
                         </a>
-                    {% elif report.reply %}
-                         {% if report.reply.thread %}
+                    {% elif report.reply and report.reply.thread %}
                         <a href="{% url 'threads:thread_detail' pk=report.reply.thread.pk order_by='-created_at' %}" class="small fw-bold text-decoration-none" target="_blank">
                             View Context <i class="bi bi-box-arrow-up-right ms-1"></i>
                         </a>
-                        {% else %}
-                        <span class="small text-muted">Context unavailable</span>
-                        {% endif %}
                     {% endif %}
                 </div>
             </div>
 
+            <!-- ACTIONS -->
             <div class="d-flex gap-2 flex-wrap">
                 
                 <form action="{% url 'threads:report_update' pk=report.pk %}?next={{ request.get_full_path }}" method="post" class="flex-grow-1">
@@ -145,7 +152,7 @@
     </div>
     {% endfor %}
 
-    <!-- Pagination Controls -->
+    <!-- PAGINATION -->
     {% if is_paginated %}
     <nav aria-label="Page navigation" class="mt-4">
         <ul class="pagination justify-content-center">
