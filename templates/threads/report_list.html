@@ -1,6 +1,17 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- SAFETY LOGIC: Detect correct variable name -->
+{% if reports %}
+    {% with data_list=reports %}
+    <!-- Using variable 'reports' -->
+{% elif report_list %}
+    {% with data_list=report_list %}
+    <!-- Using variable 'report_list' -->
+{% else %}
+    {% with data_list=None %}
+{% endif %}
+
 <div class="content-box mb-5">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
@@ -9,16 +20,19 @@
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-danger rounded-pill px-3 py-2 border border-danger bg-opacity-10 text-danger">
-                {# Use page_obj.paginator.count to get total across all pages #}
-                {{ page_obj.paginator.count|default:reports|length }} Total
+                <!-- SAFETY LOGIC: Get total count safely -->
+                {% if page_obj %}
+                    {{ page_obj.paginator.count }} Total
+                {% else %}
+                    {{ data_list|length|default:"0" }} Total
+                {% endif %}
             </span>
         </div>
     </div>
 </div>
 
 <div class="d-flex flex-column gap-3">
-    {# Loop over 'reports' because context_object_name='reports' in views.py #}
-    {% for report in reports %}
+    {% for report in data_list %}
     
     <div class="report-card p-0 overflow-hidden {% if report.status == 'RESOLVED' %}opacity-75 bg-light{% endif %}" style="transition: all 0.2s;">
         
@@ -47,14 +61,26 @@
                 <div class="text-dark fw-medium">{{ report.reason }}</div>
             </div>
 
+            <!-- CRITICAL FIX: Safe Content Access -->
             <div class="p-3 bg-white rounded-3 mb-4 border shadow-sm">
                 <label class="sidebar-label mb-2">Offending Content</label>
-                <div class="text-secondary fst-italic">
+                <div class="text-secondary fst-italic text-break">
+                    
                     {% if report.thread %}
+                        <!-- It is a Thread Report -->
                         <strong class="d-block mb-1">{{ report.thread.title }}</strong>
+                        <div>"{{ report.thread.content|striptags|truncatechars:200 }}"</div>
+                        
+                    {% elif report.reply %}
+                        <!-- It is a Reply Report -->
+                        <strong class="d-block mb-1">Reply in: {{ report.reply.thread.title|default:"Deleted Thread" }}</strong>
+                        <div>"{{ report.reply.content|striptags|truncatechars:200 }}"</div>
+                        
+                    {% else %}
+                        <!-- Content is Missing/Deleted -->
+                        <span class="text-muted">(Content unavailable)</span>
                     {% endif %}
-                    {# Use striptags to show safe preview of content #}
-                    <div>"{{ report.thread.content|default:report.reply.content|striptags|truncatechars:200 }}"</div>
+                    
                 </div>
                 
                 <div class="mt-2 text-end border-top pt-2">
@@ -63,9 +89,13 @@
                             View Thread <i class="bi bi-box-arrow-up-right ms-1"></i>
                         </a>
                     {% elif report.reply %}
+                         {% if report.reply.thread %}
                         <a href="{% url 'threads:thread_detail' pk=report.reply.thread.pk order_by='-created_at' %}" class="small fw-bold text-decoration-none" target="_blank">
                             View Context <i class="bi bi-box-arrow-up-right ms-1"></i>
                         </a>
+                        {% else %}
+                        <span class="small text-muted">Context unavailable</span>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -148,6 +178,13 @@
     </nav>
     {% endif %}
 </div>
+
+{% if reports %}
+    {% endwith %}
+{% elif report_list %}
+    {% endwith %}
+{% endif %}
+
 {% endblock %}
 
 {% block right_sidebar %}
