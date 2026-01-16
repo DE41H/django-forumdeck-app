@@ -119,7 +119,7 @@ class Post(models.Model):
             else:
                 pk = self.thread.pk # type: ignore
             subject = f'You have been mentioned in a {self.__class__.__name__}'
-            link = f'https://{Site.objects.get_current()}{reverse_lazy('threads:thread_detail', kwargs={'pk': pk, 'order_by': '-created_at'})}'
+            link = f'https://forumdeck.sreyash.tech{str(reverse_lazy('threads:thread_detail', kwargs={'pk': pk, 'order_by': '-created_at'}))}'
             body=f'Mentioned By: {self.author}\nMentioned At: {self.created_at}\nClick this link to view: {link}'
             messages = []
             for user in self._get_mentioned():
@@ -228,7 +228,7 @@ class Reply(Post):
         if is_new:
             Thread.objects.filter(pk=self.thread.pk).update(reply_count=models.F('reply_count') + 1)
             subject = f'Your thread has gotten replies!'
-            link = f'https://{Site.objects.get_current()}{reverse_lazy('threads:thread_detail', kwargs={'pk': self.thread.pk, 'order_by': '-created_at'})}'
+            link = f'https://forumdeck.sreyash.tech{str(reverse_lazy('threads:thread_detail', kwargs={'pk': self.thread.pk, 'order_by': '-created_at'}))}'
             body = f'{self.author} has replied to your thread on {self.thread.category} at {self.created_at}\nView your thread: {link}'
             queue_mail(
                 to=self.thread.author.email,
