@@ -231,7 +231,7 @@ class Reply(Post):
             link = f'https://{Site.objects.get_current()}{reverse_lazy('threads:thread_detail', kwargs={'pk': self.thread.pk, 'order_by': '-created_at'})}'
             body = f'{self.author} has replied to your thread on {self.thread.category} at {self.created_at}\nView your thread: {link}'
             queue_mail(
-                to=self.thread.author,
+                to=self.thread.author.email,
                 subject=subject,
                 body=body
             )
